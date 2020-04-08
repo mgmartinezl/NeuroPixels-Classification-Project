@@ -218,7 +218,7 @@ for unit in good_units:
                 print('Incorrect number of bins for this unit')
                 pass
 
-        drift_free_unit = 1 if unit_percent_missing < 0.3 else 0
+        drift_free_unit = 1 if unit_percent_missing <= 30 else 0
 
         # >> UNIT ACG <<
         cbin = 0.2
@@ -523,7 +523,7 @@ for unit in good_units:
                     chunk_percent_missing = int(round(chunk_percent_missing, 2))
 
             drift_tracking_ratio_chunk_list.append(chunk_percent_missing)
-            drift_free_chunk = 1 if chunk_percent_missing < 0.3 else 0
+            drift_free_chunk = 1 if chunk_percent_missing <= 30 else 0
             drift_free_chunk_list.append(drift_free_unit)
 
             # *********************************************************************************************************
