@@ -54,43 +54,49 @@ good_units = get_units(dp, quality='good')
 all_units = get_units(dp)
 print("All units in sample:", len(all_units))
 print(f"Good units found in current sample: {len(good_units)} --> {good_units}")
-good_units = [29]
+# good_units = [23]
+good_units = [18, 19, 20, 23, 24, 25, 26, 27, 28, 29, 30, 31, 33, 34, 35, 36, 37, 38]
+# good_units = [39, 40, 41, 42, 43, 44, 47, 49, 52, 53, 54, 55, 64, 67, 68, 69, 73, 76]
+# good_units = [78, 81, 83, 85, 87, 88, 93, 95, 98, 99, 101, 102, 107, 108, 110, 112, 113, 120]
+# good_units = [121, 122, 154, 160, 192, 204, 234]
 
-sample_list = []
-unit_list = []
-spikes_unit_list = []  # No threshold set yet
-peak_channel_list = []
-count_unit_wvf_peaks_list = []
-cos_similarity_template_unit_list = []
-threshold_cos_similarity_template_unit_list = []
-rpv_unit_list = []  # No threshold set yet
-Fp_unit_list = []  # No threshold set yet
-MFR_unit_list = []
-mean_amplitude_unit_list = []
-peak_detection_threshold_list = []
-drift_tracking_ratio_unit_list = []
-drift_free_unit_list = []
-unit_biggest_peak_negative_list = []
-
-chunks_list = []
-chunk_len_list = []
-spikes_chunk_list = []
-count_wvf_peaks_list = []
-cos_similarity_template_chunk_list = []
-threshold_cos_similarity_template_chunk_list = []
-cos_similarity_unit_chunk_list = []
-threshold_cos_similarity_unit_chunk_list = []
-rpv_list = []
-Fp_list = []
-MFR_chunk_list = []
-MA_chunk_list = []
-drift_tracking_ratio_chunk_list = []
-drift_free_chunk_list = []
-chunk_biggest_peak_negative_list = []
+# Best unit so far >> 20
 
 total = 0
 
 for unit in good_units:
+
+    sample_list = []
+    unit_list = []
+    spikes_unit_list = []  # No threshold set yet
+    peak_channel_list = []
+    count_unit_wvf_peaks_list = []
+    cos_similarity_template_unit_list = []
+    threshold_cos_similarity_template_unit_list = []
+    rpv_unit_list = []  # No threshold set yet
+    Fp_unit_list = []  # No threshold set yet
+    MFR_unit_list = []
+    mean_amplitude_unit_list = []
+    peak_detection_threshold_list = []
+    drift_tracking_ratio_unit_list = []
+    drift_free_unit_list = []
+    unit_biggest_peak_negative_list = []
+
+    chunks_list = []
+    chunk_len_list = []
+    spikes_chunk_list = []
+    count_wvf_peaks_list = []
+    cos_similarity_template_chunk_list = []
+    threshold_cos_similarity_template_chunk_list = []
+    cos_similarity_unit_chunk_list = []
+    threshold_cos_similarity_unit_chunk_list = []
+    rpv_list = []
+    Fp_list = []
+    MFR_chunk_list = []
+    MA_chunk_list = []
+    drift_tracking_ratio_chunk_list = []
+    drift_free_chunk_list = []
+    chunk_biggest_peak_negative_list = []
 
     print(f'Unit >>>> {unit}')
 
@@ -136,7 +142,6 @@ for unit in good_units:
 
         # >> UNIT MEAN WAVEFORM BIGGEST PEAK DETECTION <<
         unit_biggest_peak_negative = detect_biggest_peak(ms_norm_waveform_peak_channel)
-        unit_biggest_peak_negative_list.append(unit_biggest_peak_negative)
 
         # >> UNIT TEMPLATE AROUND PEAK CHANNEL <<
         unit_template_peak_channel = np.mean(templates(dp, unit)[:, :, peak_channel], axis=0)
@@ -175,34 +180,45 @@ for unit in good_units:
 
         # >> GAUSSIAN FIT TO UNIT AMPLITUDES <<
         # >> UNIT % OF MISSING SPIKES <<
+        a = np.asarray(amplitudes_unit_20, dtype='float64')
 
-        amplitudes_unit_20 = np.asarray(amplitudes_unit_20, dtype='float64')
-        amplitudes_unit_20 = stats.boxcox(amplitudes_unit_20)[0]
-        amplitudes_unit_20 = np.asarray(amplitudes_unit_20, dtype='float64')
+        x = None
+        p0 = None
+        n_fit = None
+        n_fit_no_cut = None
+        min_amp_unit = None
+        unit_percent_missing = None
 
-        x, p0 = ampli_fit_gaussian_cut(amplitudes_unit_20)
-        n_fit = gaussian_cut(x, a=p0[0], mu=p0[1], sigma=p0[2], xcut=p0[3])
-        min_amp_unit = p0[3]
-        n_fit_no_cut = gaussian_cut(x, a=p0[0], mu=p0[1], sigma=p0[2], xcut=0)
-        norm_area_ndtr = stats.norm.cdf(min_amp_unit, loc=p0[1], scale=p0[2])
-        unit_percent_missing = 100 * norm_area_ndtr
-        unit_percent_missing = int(round(unit_percent_missing, 0))
+        try:
+            x, p0 = ampli_fit_gaussian_cut(a)
+            n_fit = gaussian_cut(x, a=p0[0], mu=p0[1], sigma=p0[2], xcut=p0[3])
+            min_amp_unit = p0[3]
+            n_fit_no_cut = gaussian_cut(x, a=p0[0], mu=p0[1], sigma=p0[2], xcut=0)
+            norm_area_ndtr = stats.norm.cdf((p0[1] - min_amp_unit) / p0[2])
+            unit_percent_missing = 100 * (1 - norm_area_ndtr)
+            unit_percent_missing = int(round(unit_percent_missing, 0))
+
+        except RuntimeError:
+            print('Data cannot be fitted to a Gaussian!')
+
+            try:
+                num, bins = np.histogram(a, bins=200)
+                maxNum = max(num)
+                maxNum_index = np.where(num == maxNum)[0]
+                if len(maxNum_index) > 1:
+                    maxNum_index = maxNum_index[0]
+                halfSym = num[int(maxNum_index):-1]
+                cutoff = np.where(num == 0)[0][-1]
+                fullSym = np.flipud(halfSym[1:int(len(halfSym))])
+                fullSym = np.concatenate([fullSym, halfSym])
+                unit_percent_missing = 100 * (1 - sum(fullSym[0:cutoff]) / sum(fullSym))
+                unit_percent_missing = int(round(unit_percent_missing, 2))
+
+            except IndexError:
+                print('Incorrect number of bins for this unit')
+                pass
+
         drift_free_unit = 1 if unit_percent_missing < 0.3 else 0
-
-        # << IF AMPLITUDES NOT GAUSSIAN >>
-        # num, bins = np.histogram(a, bins=150)
-        # maxNum = max(num)
-        # maxNum_index = np.where(num == maxNum)[0]
-        # halfSym = num[int(maxNum_index):-1]
-        # cutoff = np.where(num == 0)[0][0]
-        # print('cutoff', cutoff)
-        # fullSym = np.flipud(halfSym[1:int(len(halfSym))])
-        # fullSym = np.concatenate([fullSym, halfSym])
-        # percentSpikesMissing = 1-sum(fullSym[0:cutoff])/sum(fullSym)
-        # print('percentSpikesMissing', percentSpikesMissing)
-
-        #distplot(boxCox)
-        #plt.show()
 
         # >> UNIT ACG <<
         cbin = 0.2
@@ -275,20 +291,24 @@ for unit in good_units:
 
         # (1, 1)
         # ******************************************************************************************************
-        # UNIT DRIFT RACKING RATIO
+        # % OF MISSING SPIKES
 
-        axs[1, 1].hist(amplitudes_unit_20, bins=100, orientation='vertical', color='lightgray')
-        axs[1, 1].plot(x, n_fit_no_cut, color='silver')
-        axs[1, 1].plot(x, n_fit, color='gold')
-        axs[1, 1].set_ylabel("# of spikes", size=9, color='#939799')
-        axs[1, 1].set_xlabel("Amplitude (Gaussian fit)", size=9, color='#939799')
-        leg_dtr_1_1 = [f'Spikes missing: {unit_percent_missing}%']
-        axs[1, 1].axvline(p0[3], color='salmon', ls='--', lw=2, ymax=p0[0] / 2, label='MS')
-        leg_1_1 = axs[1, 1].legend(leg_dtr_1_1, loc='best', frameon=False, fontsize=9)
-        for text in leg_1_1.get_texts():
-            text.set_color("gray")
-        for lh in leg_1_1.legendHandles:
-            lh.set_alpha(0)
+        if all(v is not None for v in [x, p0, n_fit, n_fit_no_cut, min_amp_unit, unit_percent_missing]):
+            axs[1, 1].hist(a, bins=100, orientation='vertical', color='lightgray')
+            axs[1, 1].plot(x, n_fit_no_cut, color='silver')
+            axs[1, 1].plot(x, n_fit, color='gold')
+            axs[1, 1].set_ylabel("# of spikes", size=9, color='#939799')
+            axs[1, 1].set_xlabel("Amplitude (Gaussian fit)", size=9, color='#939799')
+            leg_dtr_1_1 = [f'Spikes missing: {unit_percent_missing}%']
+            axs[1, 1].axvline(p0[3], color='salmon', ls='--', lw=2, ymax=p0[0] / 2, label='MS')
+            leg_1_1 = axs[1, 1].legend(leg_dtr_1_1, loc='best', frameon=False, fontsize=9)
+            for text in leg_1_1.get_texts():
+                text.set_color("gray")
+            for lh in leg_1_1.legendHandles:
+                lh.set_alpha(0)
+
+        else:
+            axs[1, 1].hist(a, bins=100, orientation='vertical', color='salmon')
 
         # ******************************************************************************************************
         # FORMATTING
@@ -333,360 +353,395 @@ for unit in good_units:
         fig.tight_layout()
         plt.show()
 
-        # # SAVE UNIT FIGURES
-        #
-        # unit_path = f"Images/Pipeline/Sample_{sample}/Unit_{unit}"
-        #
-        # if not os.path.exists(unit_path):
-        #     os.makedirs(unit_path)
-        #
-        # fig.savefig(f"Images/Pipeline/Sample_{sample}/Unit_{unit}/sample-{sample}-unit-{unit}.png")
+        # SAVE UNIT FIGURES
 
-        # # ******************************************************************************************************
-        # # >> CHUNKS PROCESSING <<
-        #
-        # all_chunks_dict = {}
-        #
-        # for i in range(N_chunks):
-        #
-        #     print(f'Chunk {i}')
-        #
-        #     # >> SAVE UNIT INFORMATION <<
-        #     sample_list.append(sample)
-        #     unit_list.append(unit)
-        #     spikes_unit_list.append(spikes_unit_20)
-        #     peak_channel_list.append(peak_channel)
-        #     count_unit_wvf_peaks_list.append(count_unit_wvf_peaks)
-        #     cos_similarity_template_unit_list.append(cos_similarity_template_unit)
-        #     threshold_cos_similarity_template_unit_list.append(threshold_cos_similarity_template_unit)
-        #     rpv_unit_list.append(RVP_unit)
-        #     Fp_unit_list.append(Fp_unit)
-        #     MFR_unit_list.append(MFR_unit)
-        #     mean_amplitude_unit_list.append(MA_unit)
-        #     peak_detection_threshold_list.append(min_amp_unit)
-        #     drift_tracking_ratio_unit_list.append(unit_percent_missing)
-        #     drift_free_unit_list.append(drift_free_unit)
-        #
-        #     chunks_list.append(i)
-        #
-        #     # >> DEFINE CHUNK LENGTH AND TIMES <<
-        #     chunk_start_time = i * chunk_size_s
-        #     chunk_end_time = (i + 1) * chunk_size_s
-        #     chunk_len = (chunk_start_time, chunk_end_time)
-        #     chunk_len_list.append(chunk_len)
-        #
-        #     # >> CHUNK ACG <<
-        #     chunk_ACG = acg(dp, unit, 0.2, 80, subset_selection=[(chunk_start_time, chunk_end_time)])
-        #     # norm_chunk_ACG = range_normalization(chunk_ACG)
-        #
-        #     x_chunk = np.linspace(-cwin * 1. / 2, cwin * 1. / 2, chunk_ACG.shape[0])
-        #     y_chunk = chunk_ACG.copy()
-        #     ylim1_chunk = 0
-        #     yl_chunk = max(chunk_ACG)
-        #     ylim2_chunk = int(yl_chunk) + 5 - (yl_chunk % 5)
-        #
-        #     # >> CHUNK MEAN WAVEFORM AROUND PEAK CHANNEL <<
-        #     chunk_waveform_peak_channel = np.mean(
-        #         wvf(dp, unit, t_waveforms=82, subset_selection=[(chunk_start_time, chunk_end_time)])
-        #         [:, :, peak_channel], axis=0)
-        #
-        #     # >> MEAN CHUNK WAVEFORM NORMALIZATION <<
-        #     norm_chunk_waveform_peak_channel = range_normalization(chunk_waveform_peak_channel)
-        #
-        #     # >> MEAN CHUNK WAVEFORM MEAN SUBTRACTION <<
-        #     ms_norm_chunk_waveform_peak_channel = waveform_mean_subtraction(norm_chunk_waveform_peak_channel)
-        #
-        #     # >> MEAN CHUNK WAVEFORM PEAK DETECTION <<
-        #     xs_c, ys_c, count_chunk_wvf_peaks = detect_peaks(ms_norm_chunk_waveform_peak_channel)
-        #     count_wvf_peaks_list.append(count_chunk_wvf_peaks)
-        #
-        #     # >> MEAN CHUNK WAVEFORM BIGGEST PEAK DETECTION <<
-        #     chunk_biggest_peak_negative = detect_biggest_peak(ms_norm_chunk_waveform_peak_channel)
-        #     chunk_biggest_peak_negative_list.append(chunk_biggest_peak_negative)
-        #
-        #     # >> COSINE SIMILARITY (CHUNK VS UNIT) <<
-        #     cos_similarity_unit_chunk, threshold_cos_similarity_unit_chunk = \
-        #         cosine_similarity(ms_norm_waveform_peak_channel, ms_norm_chunk_waveform_peak_channel)
-        #     cos_similarity_unit_chunk_list.append(cos_similarity_unit_chunk)
-        #     threshold_cos_similarity_unit_chunk_list.append(threshold_cos_similarity_unit_chunk)
-        #
-        #     # >> COSINE SIMILARITY (CHUNK VS TEMPLATE) <<
-        #     cos_similarity_template_chunk, threshold_cos_similarity_template_chunk = \
-        #         cosine_similarity(ms_norm_unit_template_peak_channel, ms_norm_chunk_waveform_peak_channel)
-        #     cos_similarity_template_chunk_list.append(cos_similarity_template_chunk)
-        #     threshold_cos_similarity_template_chunk_list.append(threshold_cos_similarity_template_chunk)
-        #
-        #     # >> CHUNK SPIKES <<
-        #     chunk_mask = (i * chunk_size_s * fs <= spike_times_unit_20) & (spike_times_unit_20 < (i + 1) * chunk_size_s * fs)
-        #     chunk_mask = chunk_mask.reshape(len(spike_times_unit_20), )
-        #     trn_samples_chunk = trn_samples_unit_20[chunk_mask]
-        #     trn_ms_chunk = trn_samples_chunk * 1. / (fs * 1. / 1000)
-        #     spikes_chunk = len(trn_ms_chunk)
-        #     spikes_chunk_list.append(spikes_chunk)
-        #
-        #     # >> CHUNK INTER SPIKE INTERVAL <<
-        #     isi_chunk = compute_isi(trn_ms_chunk, exclusion_quantile)
-        #
-        #     # >> CHUNK FRACTION OF CONTAMINATION AND REFRACTORY PERIOD VIOLATIONS <<
-        #     RVP_chunk, Fp_chunk = rvp_and_fp(isi_chunk, N=spikes_chunk, T=chunk_size_ms, tauR=2, tauC=0.5)
-        #     rpv_list.append(RVP_chunk)
-        #     Fp_list.append(Fp_chunk)
-        #
-        #     # >> CHUNK MEAN FIRING RATE <<
-        #     MFR_chunk = mean_firing_rate(isi_chunk)
-        #     MFR_chunk_list.append(MFR_chunk)
-        #
-        #     # >> CHUNK AMPLITUDES <<
-        #     amplitudes_chunk = amplitudes_unit_20[chunk_mask]
-        #
-        #     # >> REMOVE OUTLIERS <<
-        #     amplitudes_chunk = remove_outliers(amplitudes_chunk, exclusion_quantile)
-        #
-        #     # >> CHUNK MEAN AMPLITUDE <<
-        #     MA_chunk = mean_amplitude(amplitudes_chunk)
-        #     MA_chunk_list.append(MA_chunk)
-        #
-        #     # >> CHUNK AMPLITUDES NORMALIZATION <<
-        #     norm_amplitudes_chunk = range_normalization(amplitudes_chunk)
-        #
-        #     # >> GAUSSIAN FIT TO CHUNK AMPLITUDES <<
-        #     # >> CHUNK % OF MISSING SPIKES <<
-        #     x, p0 = ampli_fit_gaussian_cut(amplitudes_chunk)
-        #     n_fit = gaussian_cut(x, a=p0[0], mu=p0[1], sigma=p0[2], xcut=p0[3])
-        #     min_amp_chunk=p0[3]
-        #     n_fit_no_cut = gaussian_cut(x, a=p0[0], mu=p0[1], sigma=p0[2], xcut=0)
-        #     norm_area_ndtr = stats.norm.cdf(1.65, loc=p0[1], scale=p0[2])
-        #     chunk_percent_missing = 100 * (1 - norm_area_ndtr)
-        #     chunk_percent_missing = round(chunk_percent_missing, 2)
-        #     drift_tracking_ratio_chunk_list.append(chunk_percent_missing)
-        #     drift_free_chunk = 1 if chunk_percent_missing < 0.3 else 0
-        #     drift_free_chunk_list.append(drift_free_chunk)
-        #
-        #     # *********************************************************************************************************
-        #     # GRAPHICS!
-        #
-        #     fig, axs = plt.subplots(2, 3, figsize=(20, 12))
-        #     fig.suptitle(
-        #         f'Sample {sample}, unit {unit} - (20min), chunk {i} - {chunk_len} s - Total spikes: {spikes_chunk} - '
-        #         f'Waveform detected peaks: {count_chunk_wvf_peaks}',
-        #         y=0.98, fontsize=10, color='#939799')
-        #
-        #     # (0, 0)
-        #     # ******************************************************************************************************
-        #     # MEAN WAVEFORMS: UNIT VS CHUNK
-        #
-        #     labels_0_0 = ['Unit', 'Chunk']
-        #     axs[0, 0].plot(ms_norm_waveform_peak_channel, color='gold')
-        #     axs[0, 0].plot(ms_norm_chunk_waveform_peak_channel, color='lightgray')
-        #     axs[0, 0].scatter(xs_c, ys_c, marker='v', c='salmon')
-        #
-        #     leg_0_0 = axs[0, 0].legend(labels_0_0, loc='best', frameon=False, fontsize=9)
-        #     for text in leg_0_0.get_texts():
-        #         text.set_color("gray")
-        #     axs[0, 0].set_title(f' \n \n Mean wvf unit vs chunk (cos similarity: {cos_similarity_unit_chunk}) \n'
-        #                         f' Biggest peak negative: {chunk_biggest_peak_negative}',
-        #                         fontsize=9, fontname="DejaVu Sans", loc='center', color='#939799')
-        #
-        #     # (0, 1)
-        #     # ******************************************************************************************************
-        #     # MEAN WAVEFORMS: UNIT TEMPLATE VS CHUNK
-        #
-        #     labels_0_1 = ['Unit template', 'Chunk']
-        #     axs[0, 1].plot(ms_norm_unit_template_peak_channel, color='salmon')
-        #     axs[0, 1].plot(ms_norm_chunk_waveform_peak_channel, color='lightgray')
-        #     axs[0, 1].scatter(xs_c, ys_c, marker='v', c='salmon')
-        #
-        #     leg_0_1 = axs[0, 1].legend(labels_0_1, loc='best', frameon=False, fontsize=9)
-        #     for text in leg_0_1.get_texts():
-        #         text.set_color("gray")
-        #
-        #     axs[0, 1].set_title(f' \n \n Mean wvf template vs chunk (cos similarity: {cos_similarity_template_chunk})',
-        #                         fontsize=9, fontname="DejaVu Sans", loc='center', color='#939799')
-        #
-        #     # (0, 2)
-        #     # ******************************************************************************************************
-        #     # ACG FOR CHUNK
-        #
-        #     axs[0, 2].bar(x=x_chunk, height=y_chunk, width=0.2, color='gold', bottom=ylim1_chunk)
-        #     axs[0, 2].set_ylim([ylim1_chunk, ylim2_chunk])
-        #     axs[0, 2].set_ylabel("Autocorrelation (Hz)", size=9, color='#939799')
-        #     axs[0, 2].set_xlabel("Time (ms)", size=9)
-        #     axs[0, 2].set_title(f' \n \n Autocorrelogram', fontsize=9, fontname="DejaVu Sans", loc='center',
-        #                         color='#939799')
-        #
-        #     # (1, 0)
-        #     # ******************************************************************************************************
-        #     # ISI HISTOGRAM AND MEAN FIRING RATE GRAPH
-        #
-        #     # Compute ideal number of bins with Freedman-Diaconis’s Rule
-        #     len_ISI = int(len(isi_chunk))
-        #     no_RVP = [i for i in isi_chunk if i >= 2.0]  # 2ms
-        #     len_no_RVP = len(no_RVP)
-        #     bins = int(np.floor((len_ISI ** (1 / 3)))) * 10
-        #
-        #     axs[1, 0].hist(isi_chunk, bins=bins, color='lightgray', histtype='barstacked', label='ISI')
-        #     axs[1, 0].set_xlabel('Inter Spike Interval')
-        #
-        #     leg_line_mfr = [f'Refractory Period Violations = {RVP_chunk}  \n'
-        #                     f'Fraction of contamination = {Fp_chunk}  \n'
-        #                     f'Mean Firing Rate = {MFR_chunk}  \n']
-        #     axs[1, 0].axvline(x=MFR_chunk, ymin=0, ymax=0.95, linestyle='--', color='salmon', label='mfr', alpha=0)
-        #     leg_1_0 = axs[1, 0].legend(leg_line_mfr, loc='best', frameon=False, fontsize=9)
-        #
-        #     for text in leg_1_0.get_texts():
-        #         text.set_color("gray")
-        #
-        #     # (1, 1)
-        #     # ******************************************************************************************************
-        #     # CHUNK AMPLITUDE
-        #
-        #     amplitudes_chunk_plot = distplot(amplitudes_chunk, ax=axs[1, 1], bins=80,
-        #                                      kde_kws={"shade": False},
-        #                                      kde=True, color='lightgray', hist=True)
-        #     nice_plot(amplitudes_chunk_plot, "Amplitudes", "", "")
-        #     # axs[1, 1].plot(norm_amplitudes_unit_20, color='lightgray')
-        #
-        #     labels_1_1 = [f'Chunk Mean Amplitude = {str(MA_chunk)} ']
-        #     axs[1, 1].axvline(x=MA_chunk, ymin=0, ymax=0.95, linestyle='--', color='salmon')
-        #
-        #     leg_1_1 = axs[1, 1].legend(labels_1_1, loc='best', frameon=False, fontsize=9)
-        #
-        #     for text in leg_1_1.get_texts():
-        #         text.set_color("gray")
-        #
-        #     # (1, 2)
-        #     # ******************************************************************************************************
-        #     # DRIFT RACKING RATIO AND MEAN AMPLITUDE
-        #
-        #     # if drift_tracking_ratio_chunk > 0.7:
-        #     #     drift_free_spikes = nice_plot(distplot(gaussian_sample, ax=axs[1, 2], kde_kws={"shade": True},
-        #     #                                            hist=False, kde=True, color='salmon'),
-        #     #                                   "Amplitudes (Gaussian fit)", "", "")
-        #     # else:
-        #     #     drift_free_spikes = nice_plot(distplot(gaussian_sample, ax=axs[1, 2],
-        #     #                                            kde_kws={"shade": True}, hist=False, kde=True,
-        #     #                                            color='lightgray'),
-        #     #                                   "Amplitudes (Gaussian fit)", "", "")
-        #     #
-        #     # labels_1_2 = [f'Drift Tracking Ratio (AUC) = {str(drift_tracking_ratio_chunk)} \n'
-        #     #               f'Chunk Mean Amplitude = {str(MA_chunk)}  \n'
-        #     #               f'Peak detection threshold = {peak_detection_threshold}']
-        #     # axs[1, 2].axvline(x=MA_chunk, ymin=0, ymax=0.95, linestyle='--', color='salmon', label='drift')
-        #     # leg_1_2 = axs[1, 2].legend(labels_1_2, loc='best', frameon=False, fontsize=9)
-        #     #
-        #     # for text in leg_1_2.get_texts():
-        #     #     text.set_color("gray")
-        #     #
-        #     # axs[1, 2].set_xlim(left=peak_detection_threshold)
-        #
-        #     axs[1, 2].hist(amplitudes_chunk, bins=80, orientation='vertical', color='lightgray')
-        #     axs[1, 2].plot(x, n_fit_no_cut, color='silver')
-        #     axs[1, 2].plot(x, n_fit, color='gold')
-        #     axs[1, 2].set_ylabel("# of spikes", size=9, color='#939799')
-        #     axs[1, 2].set_xlabel("Amplitude (Gaussian fit)", size=9, color='#939799')
-        #     leg_dtr_1_2 = [f'Spikes missing: {chunk_percent_missing}%']
-        #     axs[1, 2].axvline(p0[3], color='salmon', ls='--', lw=2, ymax=min_amp_chunk/2, label='MS')
-        #     leg_1_2 = axs[1, 2].legend(leg_dtr_1_2, loc='best', frameon=False, fontsize=9)
-        #     for text in leg_1_2.get_texts():
-        #         text.set_color("gray")
-        #     for lh in leg_1_2.legendHandles:
-        #         lh.set_alpha(0)
-        #
-        #     # ******************************************************************************************************
-        #     # FORMATTING
-        #
-        #     axs[0, 0].spines["top"].set_visible(False)
-        #     axs[0, 0].spines["right"].set_visible(False)
-        #     axs[0, 1].spines["top"].set_visible(False)
-        #     axs[0, 1].spines["right"].set_visible(False)
-        #     axs[1, 0].spines["top"].set_visible(False)
-        #     axs[1, 0].spines["right"].set_visible(False)
-        #     axs[0, 2].spines["top"].set_visible(False)
-        #     axs[0, 2].spines["right"].set_visible(False)
-        #     axs[1, 2].spines["top"].set_visible(False)
-        #     axs[1, 2].spines["right"].set_visible(False)
-        #     axs[0, 0].tick_params(axis='x', colors='#939799')
-        #     axs[0, 0].tick_params(axis='y', colors='#939799')
-        #     axs[0, 1].tick_params(axis='x', colors='#939799')
-        #     axs[0, 1].tick_params(axis='y', colors='#939799')
-        #     axs[1, 0].tick_params(axis='x', colors='#939799')
-        #     axs[1, 0].tick_params(axis='y', colors='#939799')
-        #     axs[0, 2].tick_params(axis='x', colors='#939799')
-        #     axs[0, 2].tick_params(axis='y', colors='#939799')
-        #     axs[1, 2].tick_params(axis='x', colors='#939799')
-        #     axs[1, 2].tick_params(axis='y', colors='#939799')
-        #     axs[0, 0].tick_params(axis='both', which='minor', labelsize=8)
-        #     axs[0, 0].tick_params(axis='both', which='major', labelsize=10)
-        #     axs[0, 1].tick_params(axis='both', which='minor', labelsize=8)
-        #     axs[0, 1].tick_params(axis='both', which='major', labelsize=10)
-        #     axs[1, 0].tick_params(axis='both', which='major', labelsize=10)
-        #     axs[0, 2].tick_params(axis='both', which='major', labelsize=10)
-        #     axs[1, 2].tick_params(axis='both', which='major', labelsize=10)
-        #     # axs[1, 2].tick_params(labelleft=False)
-        #     # axs[1, 2].tick_params(labelbottom=False)
-        #     axs[0, 0].yaxis.label.set_color('#939799')
-        #     axs[0, 0].xaxis.label.set_color('#939799')
-        #     axs[0, 1].yaxis.label.set_color('#939799')
-        #     axs[0, 1].xaxis.label.set_color('#939799')
-        #     axs[1, 0].xaxis.label.set_color('#939799')
-        #     axs[0, 2].xaxis.label.set_color('#939799')
-        #     axs[1, 2].xaxis.label.set_color('#939799')
-        #     axs[0, 0].spines['bottom'].set_color('#939799')
-        #     axs[0, 0].spines['left'].set_color('#939799')
-        #     axs[0, 1].spines['bottom'].set_color('#939799')
-        #     axs[0, 1].spines['left'].set_color('#939799')
-        #     axs[1, 0].spines['bottom'].set_color('#939799')
-        #     axs[1, 0].spines['left'].set_color('#939799')
-        #     axs[0, 2].spines['bottom'].set_color('#939799')
-        #     axs[0, 2].spines['left'].set_color('#939799')
-        #     axs[1, 2].spines['bottom'].set_color('#939799')
-        #     axs[1, 2].spines['left'].set_color('#939799')
-        #
-        #     fig.tight_layout()
-        #     plt.show()
-        #
-        #     # SAVE CHUNK FIGURES
-        #
-        #     unit_chunks_path = f"Images/Pipeline/Sample_{sample}/Unit_{unit}/Chunks"
-        #
-        #     if not os.path.exists(unit_chunks_path):
-        #         os.makedirs(unit_chunks_path)
-        #
-        #     fig.savefig(
-        #         f"Images/Pipeline/Sample_{sample}/Unit_{unit}/Chunks/sample-{sample}-unit-{unit}-chunk-{i}-{chunk_len}.png")
-        #
-        # df = pd.DataFrame(
-        #     {'Sample': sample_list,
-        #      'Unit': unit_list,
-        #      'Unit_Peak_Ch': peak_channel_list,
-        #      'Unit_Spikes': spikes_unit_list,
-        #      'Unit_Peaks_Wvf': count_unit_wvf_peaks_list,
-        #      'Unit_vs_Temp_CS': cos_similarity_template_unit_list,
-        #      'Unit_vs_Temp_CS_t': threshold_cos_similarity_template_unit_list,
-        #      'Unit_RPV': rpv_unit_list,
-        #      'Unit_Fp': Fp_unit_list,
-        #      'Unit_MFR': MFR_unit_list,
-        #      'Unit_MA': mean_amplitude_unit_list,
-        #      'Unit_Peak_Detection_t': peak_detection_threshold_list,
-        #      'Unit_Drift_TR': drift_tracking_ratio_unit_list,
-        #      'Unit_Drif_TR_t': drift_free_unit_list,
-        #      'Chunk': chunks_list,
-        #      'Chunk_Len': chunk_len_list,
-        #      'Chunk_Spikes': spikes_chunk_list,
-        #      'Chunk_Peaks_Wvf': count_wvf_peaks_list,
-        #      'Chunk_vs_Temp_CS': cos_similarity_template_chunk_list,
-        #      'Chunk_vs_Temp_CS_t': threshold_cos_similarity_template_chunk_list,
-        #      'Chunk_vs_Unit_CS': cos_similarity_unit_chunk_list,
-        #      'Chunk_vs_Unit_CS_t': threshold_cos_similarity_unit_chunk_list,
-        #      'Chunk_RPV': rpv_list,
-        #      'Chunk_Fp': Fp_list,
-        #      'Chunk_MFR': MFR_chunk_list,
-        #      'Chunk_MA': MA_chunk_list,
-        #      'Chunk_Drift_TR': drift_tracking_ratio_chunk_list,
-        #      'Chunk_Drift_TR_t': drift_free_chunk_list})
-        #
-        # df.to_csv(f'Images/Pipeline/Sample_{sample}/Unit_{unit}/Summary-sample-{sample}-unit-{unit}.csv', index=False)
-        # print(f'Summary-sample-{sample}-unit-{unit}.csv  ---> Successfully created!')
-        #
-        # total += 1
-        # print('--- Progress: ', total, 'of', len(good_units))
+        unit_path = f"Images/Pipeline/Sample_{sample}/Unit_{unit}"
+
+        if not os.path.exists(unit_path):
+            os.makedirs(unit_path)
+
+        fig.savefig(f"Images/Pipeline/Sample_{sample}/Unit_{unit}/sample-{sample}-unit-{unit}.png")
+
+        # ******************************************************************************************************
+        # >> CHUNKS PROCESSING <<
+
+        all_chunks_dict = {}
+
+        for i in range(N_chunks):
+
+            print(f'Chunk {i}')
+
+            # >> SAVE UNIT INFORMATION <<
+            sample_list.append(sample)
+            unit_list.append(unit)
+            spikes_unit_list.append(spikes_unit_20)
+            peak_channel_list.append(peak_channel)
+            count_unit_wvf_peaks_list.append(count_unit_wvf_peaks)
+            unit_biggest_peak_negative_list.append(unit_biggest_peak_negative)
+            cos_similarity_template_unit_list.append(cos_similarity_template_unit)
+            threshold_cos_similarity_template_unit_list.append(threshold_cos_similarity_template_unit)
+            rpv_unit_list.append(RVP_unit)
+            Fp_unit_list.append(Fp_unit)
+            MFR_unit_list.append(MFR_unit)
+            mean_amplitude_unit_list.append(MA_unit)
+            peak_detection_threshold_list.append(min_amp_unit)
+            drift_tracking_ratio_unit_list.append(unit_percent_missing)
+            drift_free_unit_list.append(drift_free_unit)
+
+            chunks_list.append(i)
+
+            # >> DEFINE CHUNK LENGTH AND TIMES <<
+            chunk_start_time = i * chunk_size_s
+            chunk_end_time = (i + 1) * chunk_size_s
+            chunk_len = (chunk_start_time, chunk_end_time)
+            chunk_len_list.append(chunk_len)
+
+            # >> CHUNK ACG <<
+            chunk_ACG = acg(dp, unit, 0.2, 80, subset_selection=[(chunk_start_time, chunk_end_time)])
+            # norm_chunk_ACG = range_normalization(chunk_ACG)
+
+            x_chunk = np.linspace(-cwin * 1. / 2, cwin * 1. / 2, chunk_ACG.shape[0])
+            y_chunk = chunk_ACG.copy()
+            ylim1_chunk = 0
+            yl_chunk = max(chunk_ACG)
+            ylim2_chunk = int(yl_chunk) + 5 - (yl_chunk % 5)
+
+            # >> CHUNK MEAN WAVEFORM AROUND PEAK CHANNEL <<
+            chunk_waveform_peak_channel = np.mean(
+                wvf(dp, unit, t_waveforms=82, subset_selection=[(chunk_start_time, chunk_end_time)])
+                [:, :, peak_channel], axis=0)
+
+            # >> MEAN CHUNK WAVEFORM NORMALIZATION <<
+            norm_chunk_waveform_peak_channel = range_normalization(chunk_waveform_peak_channel)
+
+            # >> MEAN CHUNK WAVEFORM MEAN SUBTRACTION <<
+            ms_norm_chunk_waveform_peak_channel = waveform_mean_subtraction(norm_chunk_waveform_peak_channel)
+
+            # >> MEAN CHUNK WAVEFORM PEAK DETECTION <<
+            xs_c, ys_c, count_chunk_wvf_peaks = detect_peaks(ms_norm_chunk_waveform_peak_channel)
+            count_wvf_peaks_list.append(count_chunk_wvf_peaks)
+
+            # >> MEAN CHUNK WAVEFORM BIGGEST PEAK DETECTION <<
+            chunk_biggest_peak_negative = detect_biggest_peak(ms_norm_chunk_waveform_peak_channel)
+            chunk_biggest_peak_negative_list.append(chunk_biggest_peak_negative)
+
+            # >> COSINE SIMILARITY (CHUNK VS UNIT) <<
+            cos_similarity_unit_chunk, threshold_cos_similarity_unit_chunk = \
+                cosine_similarity(ms_norm_waveform_peak_channel, ms_norm_chunk_waveform_peak_channel)
+            cos_similarity_unit_chunk_list.append(cos_similarity_unit_chunk)
+            threshold_cos_similarity_unit_chunk_list.append(threshold_cos_similarity_unit_chunk)
+
+            # >> COSINE SIMILARITY (CHUNK VS TEMPLATE) <<
+            cos_similarity_template_chunk, threshold_cos_similarity_template_chunk = \
+                cosine_similarity(ms_norm_unit_template_peak_channel, ms_norm_chunk_waveform_peak_channel)
+            cos_similarity_template_chunk_list.append(cos_similarity_template_chunk)
+            threshold_cos_similarity_template_chunk_list.append(threshold_cos_similarity_template_chunk)
+
+            # >> CHUNK SPIKES <<
+            chunk_mask = (i * chunk_size_s * fs <= spike_times_unit_20) & (spike_times_unit_20 < (i + 1) * chunk_size_s * fs)
+            chunk_mask = chunk_mask.reshape(len(spike_times_unit_20), )
+            trn_samples_chunk = trn_samples_unit_20[chunk_mask]
+            trn_ms_chunk = trn_samples_chunk * 1. / (fs * 1. / 1000)
+            spikes_chunk = len(trn_ms_chunk)
+            spikes_chunk_list.append(spikes_chunk)
+
+            # >> CHUNK INTER SPIKE INTERVAL <<
+            isi_chunk = compute_isi(trn_ms_chunk, exclusion_quantile)
+
+            # >> CHUNK FRACTION OF CONTAMINATION AND REFRACTORY PERIOD VIOLATIONS <<
+            RVP_chunk, Fp_chunk = rvp_and_fp(isi_chunk, N=spikes_chunk, T=chunk_size_ms, tauR=2, tauC=0.5)
+            rpv_list.append(RVP_chunk)
+            Fp_list.append(Fp_chunk)
+
+            # >> CHUNK MEAN FIRING RATE <<
+            MFR_chunk = mean_firing_rate(isi_chunk)
+            MFR_chunk_list.append(MFR_chunk)
+
+            # >> CHUNK AMPLITUDES <<
+            amplitudes_chunk = amplitudes_unit_20[chunk_mask]
+
+            # >> REMOVE OUTLIERS <<
+            amplitudes_chunk = remove_outliers(amplitudes_chunk, exclusion_quantile)
+
+            # >> CHUNK MEAN AMPLITUDE <<
+            MA_chunk = mean_amplitude(amplitudes_chunk)
+            MA_chunk_list.append(MA_chunk)
+
+            # >> CHUNK AMPLITUDES NORMALIZATION <<
+            norm_amplitudes_chunk = range_normalization(amplitudes_chunk)
+
+            # >> GAUSSIAN FIT TO CHUNK AMPLITUDES <<
+            # >> CHUNK % OF MISSING SPIKES <<
+
+            # >> UNIT % OF MISSING SPIKES <<
+            a_c = np.asarray(amplitudes_chunk, dtype='float64')
+
+            x_c = None
+            p0_c = None
+            n_fit_c = None
+            n_fit_no_cut_c = None
+            min_amp_c = None
+            chunk_percent_missing = None
+
+            try:
+                x_c, p0_c = ampli_fit_gaussian_cut(a_c)
+                n_fit_c = gaussian_cut(x_c, a=p0_c[0], mu=p0_c[1], sigma=p0_c[2], xcut=p0_c[3])
+                min_amp_c = p0_c[3]
+                n_fit_no_cut_c = gaussian_cut(x_c, a=p0_c[0], mu=p0_c[1], sigma=p0_c[2], xcut=0)
+                norm_area_ndtr_c = stats.norm.cdf((p0_c[1] - min_amp_c) / p0_c[2])
+                chunk_percent_missing = 100 * (1 - norm_area_ndtr_c)
+                chunk_percent_missing = int(round(chunk_percent_missing, 0))
+
+            except RuntimeError:
+                print('Chunk data cannot be fitted to a Gaussian')
+
+                try:
+                    num, bins = np.histogram(a_c, bins=150)
+                    maxNum = max(num)
+                    maxNum_index = np.where(num == maxNum)[0]
+                    if len(maxNum_index) > 1:
+                        maxNum_index = maxNum_index[0]
+                    halfSym = num[int(maxNum_index):-1]
+                    cutoff_c = np.where(num == 0)[0][-1]
+                    fullSym = np.flipud(halfSym[1:int(len(halfSym))])
+                    fullSym = np.concatenate([fullSym, halfSym])
+                    chunk_percent_missing = 100 * (1 - sum(fullSym[0:cutoff_c]) / sum(fullSym))
+                    chunk_percent_missing = int(round(chunk_percent_missing, 2))
+
+                except IndexError:
+                    print('Incorrect number of bins for this chunk, second try')
+                    num, bins = np.histogram(a_c, bins=300)
+                    maxNum = max(num)
+                    maxNum_index = np.where(num == maxNum)[0]
+                    if len(maxNum_index) > 1:
+                        maxNum_index = maxNum_index[0]
+                    halfSym = num[int(maxNum_index):-1]
+                    cutoff_c = np.where(num == 0)[0][-1]
+                    fullSym = np.flipud(halfSym[1:int(len(halfSym))])
+                    fullSym = np.concatenate([fullSym, halfSym])
+                    chunk_percent_missing = 100 * (1 - sum(fullSym[0:cutoff_c]) / sum(fullSym))
+                    chunk_percent_missing = int(round(chunk_percent_missing, 2))
+
+            drift_tracking_ratio_chunk_list.append(chunk_percent_missing)
+            drift_free_chunk = 1 if chunk_percent_missing < 0.3 else 0
+            drift_free_chunk_list.append(drift_free_unit)
+
+            # *********************************************************************************************************
+            # GRAPHICS!
+
+            fig, axs = plt.subplots(2, 3, figsize=(20, 12))
+            fig.suptitle(
+                f'Sample {sample}, unit {unit} - (20min), chunk {i} - {chunk_len} s - Total spikes: {spikes_chunk} - '
+                f'Waveform detected peaks: {count_chunk_wvf_peaks}',
+                y=0.98, fontsize=10, color='#939799')
+
+            # (0, 0)
+            # ******************************************************************************************************
+            # MEAN WAVEFORMS: UNIT VS CHUNK
+
+            labels_0_0 = ['Unit', 'Chunk']
+            axs[0, 0].plot(ms_norm_waveform_peak_channel, color='gold')
+            axs[0, 0].plot(ms_norm_chunk_waveform_peak_channel, color='lightgray')
+            axs[0, 0].scatter(xs_c, ys_c, marker='v', c='salmon')
+
+            leg_0_0 = axs[0, 0].legend(labels_0_0, loc='best', frameon=False, fontsize=10)
+            for text in leg_0_0.get_texts():
+                text.set_color("gray")
+            axs[0, 0].set_title(f' \n \n Mean wvf unit vs chunk (cos similarity: {cos_similarity_unit_chunk}) \n'
+                                f' Biggest peak negative: {chunk_biggest_peak_negative}',
+                                fontsize=9, fontname="DejaVu Sans", loc='center', color='#939799')
+
+            # (0, 1)
+            # ******************************************************************************************************
+            # MEAN WAVEFORMS: UNIT TEMPLATE VS CHUNK
+
+            labels_0_1 = ['Unit template', 'Chunk']
+            axs[0, 1].plot(ms_norm_unit_template_peak_channel, color='salmon')
+            axs[0, 1].plot(ms_norm_chunk_waveform_peak_channel, color='lightgray')
+            axs[0, 1].scatter(xs_c, ys_c, marker='v', c='salmon')
+
+            leg_0_1 = axs[0, 1].legend(labels_0_1, loc='best', frameon=False, fontsize=9)
+            for text in leg_0_1.get_texts():
+                text.set_color("gray")
+
+            axs[0, 1].set_title(f' \n \n Mean wvf template vs chunk (cos similarity: {cos_similarity_template_chunk})',
+                                fontsize=9, fontname="DejaVu Sans", loc='center', color='#939799')
+
+            # (0, 2)
+            # ******************************************************************************************************
+            # ACG FOR CHUNK
+
+            axs[0, 2].bar(x=x_chunk, height=y_chunk, width=0.2, color='gold', bottom=ylim1_chunk)
+            axs[0, 2].set_ylim([ylim1_chunk, ylim2_chunk])
+            axs[0, 2].set_ylabel("Autocorrelation (Hz)", size=9, color='#939799')
+            axs[0, 2].set_xlabel("Time (ms)", size=9)
+            axs[0, 2].set_title(f' \n \n Autocorrelogram', fontsize=9, fontname="DejaVu Sans", loc='center',
+                                color='#939799')
+
+            # (1, 0)
+            # ******************************************************************************************************
+            # ISI HISTOGRAM AND MEAN FIRING RATE GRAPH
+
+            # Compute ideal number of bins with Freedman-Diaconis’s Rule
+            len_ISI = int(len(isi_chunk))
+            no_RVP = [i for i in isi_chunk if i >= 2.0]  # 2ms
+            len_no_RVP = len(no_RVP)
+            bins = int(np.floor((len_ISI ** (1 / 3)))) * 10
+
+            axs[1, 0].hist(isi_chunk, bins=bins, color='lightgray', histtype='barstacked', label='ISI')
+            axs[1, 0].set_xlabel('Inter Spike Interval')
+
+            leg_line_mfr = [f'Refractory Period Violations = {RVP_chunk}  \n'
+                            f'Fraction of contamination = {Fp_chunk}  \n'
+                            f'Mean Firing Rate = {MFR_chunk}  \n']
+            axs[1, 0].axvline(x=MFR_chunk, ymin=0, ymax=0.95, linestyle='--', color='salmon', label='mfr', alpha=0)
+            leg_1_0 = axs[1, 0].legend(leg_line_mfr, loc='best', frameon=False, fontsize=10)
+
+            for text in leg_1_0.get_texts():
+                text.set_color("gray")
+
+            # (1, 1)
+            # ******************************************************************************************************
+            # CHUNK AMPLITUDE
+
+            amplitudes_chunk_plot = distplot(amplitudes_chunk, ax=axs[1, 1], bins=80,
+                                             kde_kws={"shade": False},
+                                             kde=True, color='lightgray', hist=True)
+            nice_plot(amplitudes_chunk_plot, "Amplitudes", "", "")
+            # axs[1, 1].plot(norm_amplitudes_unit_20, color='lightgray')
+
+            labels_1_1 = [f'Chunk Mean Amplitude = {str(MA_chunk)} ']
+            axs[1, 1].axvline(x=MA_chunk, ymin=0, ymax=0.95, linestyle='--', color='salmon')
+
+            leg_1_1 = axs[1, 1].legend(labels_1_1, loc='best', frameon=False, fontsize=10)
+
+            for text in leg_1_1.get_texts():
+                text.set_color("gray")
+
+            # (1, 2)
+            # ******************************************************************************************************
+            # DRIFT RACKING RATIO AND MEAN AMPLITUDE
+
+            if all(v is not None for v in [x_c, p0_c, n_fit_c, n_fit_no_cut_c, min_amp_c, chunk_percent_missing]):
+                axs[1, 2].hist(amplitudes_chunk, bins=200, orientation='vertical', color='lightgray')
+                axs[1, 2].plot(x_c, n_fit_no_cut_c, color='silver')
+                axs[1, 2].plot(x_c, n_fit_c, color='gold')
+                axs[1, 2].set_ylabel("# of spikes", size=9, color='#939799')
+                axs[1, 2].set_xlabel("Amplitude (Gaussian fit)", size=9, color='#939799')
+                leg_dtr_1_2 = [f'Spikes missing: {chunk_percent_missing}%']
+                axs[1, 2].axvline(p0_c[3], color='salmon', ls='--', lw=2, ymax=min_amp_c/2, label='MS')
+                leg_1_2 = axs[1, 2].legend(leg_dtr_1_2, loc='best', frameon=False, fontsize=10)
+                for text in leg_1_2.get_texts():
+                    text.set_color("gray")
+                for lh in leg_1_2.legendHandles:
+                    lh.set_alpha(0)
+
+            else:
+                axs[1, 2].hist(amplitudes_chunk, bins=200, orientation='vertical', color='salmon')
+                leg_dtr_1_2_x = [f'Spikes missing: {chunk_percent_missing}%']
+                leg_1_2 = axs[1, 2].legend(leg_dtr_1_2_x, loc='best', frameon=False, fontsize=10)
+                for text in leg_1_2.get_texts():
+                    text.set_color("gray")
+                for lh in leg_1_2.legendHandles:
+                    lh.set_alpha(0)
+
+            # ******************************************************************************************************
+            # FORMATTING
+
+            axs[0, 0].spines["top"].set_visible(False)
+            axs[0, 0].spines["right"].set_visible(False)
+            axs[0, 1].spines["top"].set_visible(False)
+            axs[0, 1].spines["right"].set_visible(False)
+            axs[1, 0].spines["top"].set_visible(False)
+            axs[1, 0].spines["right"].set_visible(False)
+            axs[0, 2].spines["top"].set_visible(False)
+            axs[0, 2].spines["right"].set_visible(False)
+            axs[1, 2].spines["top"].set_visible(False)
+            axs[1, 2].spines["right"].set_visible(False)
+            axs[0, 0].tick_params(axis='x', colors='#939799')
+            axs[0, 0].tick_params(axis='y', colors='#939799')
+            axs[0, 1].tick_params(axis='x', colors='#939799')
+            axs[0, 1].tick_params(axis='y', colors='#939799')
+            axs[1, 0].tick_params(axis='x', colors='#939799')
+            axs[1, 0].tick_params(axis='y', colors='#939799')
+            axs[0, 2].tick_params(axis='x', colors='#939799')
+            axs[0, 2].tick_params(axis='y', colors='#939799')
+            axs[1, 2].tick_params(axis='x', colors='#939799')
+            axs[1, 2].tick_params(axis='y', colors='#939799')
+            axs[0, 0].tick_params(axis='both', which='minor', labelsize=8)
+            axs[0, 0].tick_params(axis='both', which='major', labelsize=10)
+            axs[0, 1].tick_params(axis='both', which='minor', labelsize=8)
+            axs[0, 1].tick_params(axis='both', which='major', labelsize=10)
+            axs[1, 0].tick_params(axis='both', which='major', labelsize=10)
+            axs[0, 2].tick_params(axis='both', which='major', labelsize=10)
+            axs[1, 2].tick_params(axis='both', which='major', labelsize=10)
+            # axs[1, 2].tick_params(labelleft=False)
+            # axs[1, 2].tick_params(labelbottom=False)
+            axs[0, 0].yaxis.label.set_color('#939799')
+            axs[0, 0].xaxis.label.set_color('#939799')
+            axs[0, 1].yaxis.label.set_color('#939799')
+            axs[0, 1].xaxis.label.set_color('#939799')
+            axs[1, 0].xaxis.label.set_color('#939799')
+            axs[0, 2].xaxis.label.set_color('#939799')
+            axs[1, 2].xaxis.label.set_color('#939799')
+            axs[0, 0].spines['bottom'].set_color('#939799')
+            axs[0, 0].spines['left'].set_color('#939799')
+            axs[0, 1].spines['bottom'].set_color('#939799')
+            axs[0, 1].spines['left'].set_color('#939799')
+            axs[1, 0].spines['bottom'].set_color('#939799')
+            axs[1, 0].spines['left'].set_color('#939799')
+            axs[0, 2].spines['bottom'].set_color('#939799')
+            axs[0, 2].spines['left'].set_color('#939799')
+            axs[1, 2].spines['bottom'].set_color('#939799')
+            axs[1, 2].spines['left'].set_color('#939799')
+
+            fig.tight_layout()
+            plt.show()
+
+            # SAVE CHUNK FIGURES
+
+            unit_chunks_path = f"Images/Pipeline/Sample_{sample}/Unit_{unit}/Chunks"
+
+            if not os.path.exists(unit_chunks_path):
+                os.makedirs(unit_chunks_path)
+
+            fig.savefig(
+                f"Images/Pipeline/Sample_{sample}/Unit_{unit}/Chunks/sample-{sample}-unit-{unit}-chunk-{i}-{chunk_len}.png")
+
+        df = pd.DataFrame(
+            {'Sample': sample_list,
+             'Unit': unit_list,
+             'Unit_Peak_Ch': peak_channel_list,
+             'Unit_Spikes': spikes_unit_list,
+             'Unit_Peaks_Wvf': count_unit_wvf_peaks_list,
+             'Unit_vs_Temp_CS': cos_similarity_template_unit_list,
+             'Unit_vs_Temp_CS_t': threshold_cos_similarity_template_unit_list,
+             'Unit_RPV': rpv_unit_list,
+             'Unit_Fp': Fp_unit_list,
+             'Unit_MFR': MFR_unit_list,
+             'Unit_MA': mean_amplitude_unit_list,
+             'Unit_Peak_Detection_t': peak_detection_threshold_list,
+             'Unit_Drift_TR': drift_tracking_ratio_unit_list,
+             'Unit_Drif_TR_t': drift_free_unit_list,
+             'Chunk': chunks_list,
+             'Chunk_Len': chunk_len_list,
+             'Chunk_Spikes': spikes_chunk_list,
+             'Chunk_Peaks_Wvf': count_wvf_peaks_list,
+             'Chunk_vs_Temp_CS': cos_similarity_template_chunk_list,
+             'Chunk_vs_Temp_CS_t': threshold_cos_similarity_template_chunk_list,
+             'Chunk_vs_Unit_CS': cos_similarity_unit_chunk_list,
+             'Chunk_vs_Unit_CS_t': threshold_cos_similarity_unit_chunk_list,
+             'Chunk_RPV': rpv_list,
+             'Chunk_Fp': Fp_list,
+             'Chunk_MFR': MFR_chunk_list,
+             'Chunk_MA': MA_chunk_list,
+             'Chunk_Drift_TR': drift_tracking_ratio_chunk_list,
+             'Chunk_Drift_TR_t': drift_free_chunk_list
+            }
+        )
+
+        df.to_csv(f'Images/Pipeline/Sample_{sample}/Unit_{unit}/Summary-sample-{sample}-unit-{unit}.csv', index=False)
+        print(f'Summary-sample-{sample}-unit-{unit}.csv  ---> Successfully created!')
+
+        total += 1
+        print('--- Progress: ', total, 'of', len(good_units))
