@@ -34,13 +34,13 @@ def gaussian_cut(x, a, mu, sigma, xcut):
 
 
 def curve_fit_(x, num, p1):
-    popt = opt.curve_fit(gaussian_cut, x, num, p1, maxfev=20000)
+    popt = opt.curve_fit(gaussian_cut, x, num, p1, maxfev=10000)
     return popt
 
 
 def ampli_fit_gaussian_cut(a):
     a = np.asarray(a, dtype='float64')
-    num, bins = np.histogram(a, bins=100)
+    num, bins = np.histogram(a, bins=80)
     mode_seed = bins[np.where(num == max(num))]
     bin_steps = np.diff(bins[0:2])[0]
     x = bins[0:len(bins) - 1] + bin_steps / 2
