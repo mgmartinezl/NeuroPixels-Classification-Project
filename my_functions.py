@@ -27,6 +27,28 @@ import scipy.optimize as opt
 import scipy.stats as stats
 
 
+def not_gaussian_amp_est(x, nBins):
+    num, bins = np.histogram(x, bins=nBins)
+    maxNum = max(num)
+    maxNum_index = np.min(np.where(num == maxNum)[0])
+    cutoff = np.where(num == 0)[0][-1]
+    halfSym = num[int(maxNum_index):len(num)]
+    steps = np.flipud(halfSym[1:])
+    fullSym = np.concatenate([steps, halfSym])
+    percent_missing = 100 * sum(fullSym[0:cutoff]) / sum(fullSym)
+    percent_missing = int(round(percent_missing, 2))
+    return percent_missing
+
+
+def gaussian_amp_est(x):
+    x1, p0 = ampli_fit_gaussian_cut(x)
+    n_fit = gaussian_cut(x1, a=p0[0], mu=p0[1], sigma=p0[2], xcut=p0[3])
+    min_amp = p0[3]
+    n_fit_no_cut = gaussian_cut(x1, a=p0[0], mu=p0[1], sigma=p0[2], xcut=0)
+    percent_missing = int(round(100 * stats.norm.cdf((min_amp - p0[1]) / p0[2]), 0))
+    return x1, p0, min_amp, n_fit, n_fit_no_cut, percent_missing
+
+
 def gaussian_cut(x, a, mu, sigma, xcut):
     g = a * np.exp(-(x - mu) ** 2 / (2 * sigma ** 2))
     g[x < xcut] = 0
@@ -184,7 +206,7 @@ def rvp_and_fp(isi, N, T, tauR=0.002, tauC=0.0005, fs=30000):
         if isinstance(Fp, complex):  # function returns imaginary number if r is too high.
             overestimate = 1
             if rpv < N:
-                Fp = round(rpv / (2 * (tauR - tauC) * (N - rpv)), 2)
+                Fp = int(100 * round(rpv / (2 * (tauR - tauC) * (N - rpv)), 2)) # Integer
             else:
                 Fp = 1
 

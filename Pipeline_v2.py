@@ -45,6 +45,8 @@ chunk_size_s = 60
 chunk_size_ms = 60 * 1000
 samples_fr = unit_size_s * fs
 N_chunks = int(unit_size_s / chunk_size_s)
+cbin = 0.2
+cwin = 80
 
 # For gaussian fittings
 sample_size = 1000
@@ -54,13 +56,10 @@ good_units = get_units(dp, quality='good')
 all_units = get_units(dp)
 print("All units in sample:", len(all_units))
 print(f"Good units found in current sample: {len(good_units)} --> {good_units}")
-# good_units = [23]
+# units with problems... [76, 93, 154, 160, 192, 204, 121, 122, 234]
 good_units = [18, 19, 20, 23, 24, 25, 26, 27, 28, 29, 30, 31, 33, 34, 35, 36, 37, 38]
 # good_units = [39, 40, 41, 42, 43, 44, 47, 49, 52, 53, 54, 55, 64, 67, 68, 69, 73, 76]
-# good_units = [78, 81, 83, 85, 87, 88, 93, 95, 98, 99, 101, 102, 107, 108, 110, 112, 113, 120]
-# good_units = [121, 122, 154, 160, 192, 204, 234]
-
-# Best unit so far >> 20
+# good_units = [78, 81, 83, 85, 87, 88, 95, 98, 99, 101, 102, 107, 108, 110, 112, 113, 120]
 
 total = 0
 
@@ -68,13 +67,13 @@ for unit in good_units:
 
     sample_list = []
     unit_list = []
-    spikes_unit_list = []  # No threshold set yet
+    spikes_unit_list = []
     peak_channel_list = []
     count_unit_wvf_peaks_list = []
     cos_similarity_template_unit_list = []
     threshold_cos_similarity_template_unit_list = []
-    rpv_unit_list = []  # No threshold set yet
-    Fp_unit_list = []  # No threshold set yet
+    rpv_unit_list = []
+    Fp_unit_list = []
     MFR_unit_list = []
     mean_amplitude_unit_list = []
     peak_detection_threshold_list = []
@@ -158,6 +157,7 @@ for unit in good_units:
 
         # >> UNIT FRACTION OF CONTAMINATION AND REFRACTORY PERIOD VIOLATIONS <<
         RVP_unit, Fp_unit = rvp_and_fp(isi_unit, N=spikes_unit_20, T=unit_size_ms, tauR=2, tauC=0.5)
+        Fp_unit_threshold = 1 if Fp_unit <= 5 else 0
 
         # >> UNIT MEAN FIRING RATE <<
         MFR_unit = mean_firing_rate(isi_unit)
@@ -190,40 +190,19 @@ for unit in good_units:
         unit_percent_missing = None
 
         try:
-            x, p0 = ampli_fit_gaussian_cut(a)
-            n_fit = gaussian_cut(x, a=p0[0], mu=p0[1], sigma=p0[2], xcut=p0[3])
-            min_amp_unit = p0[3]
-            n_fit_no_cut = gaussian_cut(x, a=p0[0], mu=p0[1], sigma=p0[2], xcut=0)
-            norm_area_ndtr = stats.norm.cdf((p0[1] - min_amp_unit) / p0[2])
-            unit_percent_missing = 100 * (1 - norm_area_ndtr)
-            unit_percent_missing = int(round(unit_percent_missing, 0))
+            x, p0, min_amp_unit, n_fit, n_fit_no_cut, unit_percent_missing = gaussian_amp_est(a)
 
         except RuntimeError:
-            print('Data cannot be fitted to a Gaussian!')
-
             try:
-                num, bins = np.histogram(a, bins=200)
-                maxNum = max(num)
-                maxNum_index = np.where(num == maxNum)[0]
-                if len(maxNum_index) > 1:
-                    maxNum_index = maxNum_index[0]
-                halfSym = num[int(maxNum_index):-1]
-                cutoff = np.where(num == 0)[0][-1]
-                fullSym = np.flipud(halfSym[1:int(len(halfSym))])
-                fullSym = np.concatenate([fullSym, halfSym])
-                unit_percent_missing = 100 * (1 - sum(fullSym[0:cutoff]) / sum(fullSym))
-                unit_percent_missing = int(round(unit_percent_missing, 2))
+                unit_percent_missing = not_gaussian_amp_est(a, nBins=200)
 
             except IndexError:
-                print('Incorrect number of bins for this unit')
-                pass
+                unit_percent_missing = not_gaussian_amp_est(a, nBins=500)
 
+        print('unit_percent_missing', unit_percent_missing)
         drift_free_unit = 1 if unit_percent_missing <= 30 else 0
 
         # >> UNIT ACG <<
-        cbin = 0.2
-        cwin = 80
-
         unit_ACG = acg(dp, unit, cbin, cwin, subset_selection=[(0, unit_size_s)])
         x_unit = np.linspace(-cwin * 1. / 2, cwin * 1. / 2, unit_ACG.shape[0])
         y_unit = unit_ACG.copy()
@@ -398,7 +377,6 @@ for unit in good_units:
 
             # >> CHUNK ACG <<
             chunk_ACG = acg(dp, unit, 0.2, 80, subset_selection=[(chunk_start_time, chunk_end_time)])
-            # norm_chunk_ACG = range_normalization(chunk_ACG)
 
             x_chunk = np.linspace(-cwin * 1. / 2, cwin * 1. / 2, chunk_ACG.shape[0])
             y_chunk = chunk_ACG.copy()
@@ -484,43 +462,14 @@ for unit in good_units:
             chunk_percent_missing = None
 
             try:
-                x_c, p0_c = ampli_fit_gaussian_cut(a_c)
-                n_fit_c = gaussian_cut(x_c, a=p0_c[0], mu=p0_c[1], sigma=p0_c[2], xcut=p0_c[3])
-                min_amp_c = p0_c[3]
-                n_fit_no_cut_c = gaussian_cut(x_c, a=p0_c[0], mu=p0_c[1], sigma=p0_c[2], xcut=0)
-                norm_area_ndtr_c = stats.norm.cdf((p0_c[1] - min_amp_c) / p0_c[2])
-                chunk_percent_missing = 100 * (1 - norm_area_ndtr_c)
-                chunk_percent_missing = int(round(chunk_percent_missing, 0))
+                x_c, p0_c, min_amp_c, n_fit_c, n_fit_no_cut_c, chunk_percent_missing = gaussian_amp_est(a_c)
 
             except RuntimeError:
-                print('Chunk data cannot be fitted to a Gaussian')
-
                 try:
-                    num, bins = np.histogram(a_c, bins=150)
-                    maxNum = max(num)
-                    maxNum_index = np.where(num == maxNum)[0]
-                    if len(maxNum_index) > 1:
-                        maxNum_index = maxNum_index[0]
-                    halfSym = num[int(maxNum_index):-1]
-                    cutoff_c = np.where(num == 0)[0][-1]
-                    fullSym = np.flipud(halfSym[1:int(len(halfSym))])
-                    fullSym = np.concatenate([fullSym, halfSym])
-                    chunk_percent_missing = 100 * (1 - sum(fullSym[0:cutoff_c]) / sum(fullSym))
-                    chunk_percent_missing = int(round(chunk_percent_missing, 2))
+                    chunk_percent_missing = not_gaussian_amp_est(a_c, nBins=150)
 
                 except IndexError:
-                    print('Incorrect number of bins for this chunk, second try')
-                    num, bins = np.histogram(a_c, bins=300)
-                    maxNum = max(num)
-                    maxNum_index = np.where(num == maxNum)[0]
-                    if len(maxNum_index) > 1:
-                        maxNum_index = maxNum_index[0]
-                    halfSym = num[int(maxNum_index):-1]
-                    cutoff_c = np.where(num == 0)[0][-1]
-                    fullSym = np.flipud(halfSym[1:int(len(halfSym))])
-                    fullSym = np.concatenate([fullSym, halfSym])
-                    chunk_percent_missing = 100 * (1 - sum(fullSym[0:cutoff_c]) / sum(fullSym))
-                    chunk_percent_missing = int(round(chunk_percent_missing, 2))
+                    chunk_percent_missing = not_gaussian_amp_est(a_c, nBins=300)
 
             drift_tracking_ratio_chunk_list.append(chunk_percent_missing)
             drift_free_chunk = 1 if chunk_percent_missing <= 30 else 0
