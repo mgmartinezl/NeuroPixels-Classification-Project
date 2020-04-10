@@ -1,6 +1,6 @@
 """
 Project: Neuropixels classification pipeline
-Author: Gabiela Martinez
+Author: Gabriela Martinez
 Script: AuxFunctions.py
 
 """

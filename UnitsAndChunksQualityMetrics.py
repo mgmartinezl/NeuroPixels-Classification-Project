@@ -1,6 +1,6 @@
 """
 Project: Neuropixels classification pipeline
-Author: Gabiela Martinez
+Author: Gabriela Martinez
 Script: UnitsAndChunksQualityMetrics.py
 Description: implementation of quality metrics on units and chunks to choose the right ones for the next stage in the
 classification pipeline.
