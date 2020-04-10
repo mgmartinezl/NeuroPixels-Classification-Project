@@ -1,4 +1,4 @@
-Sample,Unit,Unit_Peak_Ch,Unit_Spikes,Unit_Peaks_Wvf,Unit_vs_Temp_CS,Unit_vs_Temp_CS_t,Unit_RPV,Unit_Fp,Unit_MFR,Unit_MA,Unit_Peak_Detection_t,Unit_Drift_TR,Unit_Drif_TR_t,Chunk,Chunk_Len,Chunk_Spikes,Chunk_Peaks_Wvf,Chunk_vs_Temp_CS,Chunk_vs_Temp_CS_t,Chunk_vs_Unit_CS,Chunk_vs_Unit_CS_t,Chunk_RPV,Chunk_Fp,Chunk_MFR,Chunk_MA,Chunk_Drift_TR,Chunk_Drift_TR_t
+Sample,Unit,Unit_Peak_Ch,Unit_Spikes,Unit_Wvf_Peaks,Unit_vs_Temp_CS,Unit_vs_Temp_CS_dummy,Unit_RPV,Unit_Fp,Unit_MFR,Unit_MeanAmp,Unit_MinAmp,Unit_Missing_Spikes,Unit_Missing_Spikes_dummy,Chunk,Chunk_Len,Chunk_Spikes,Chunk_Peaks_Wvf,Chunk_vs_Temp_CS,Chunk_vs_Temp_CS_dummy,Chunk_vs_Unit_CS,Chunk_vs_Unit_CS_dummy,Chunk_RPV,Chunk_Fp,Chunk_MFR,Chunk_MA,Chunk_Missing_Spikes,Chunk_Missing_Spikes_dummy
 19-01-16_YC011,31,94,45014,2,0.99,1,0,0,43.3,14.22,12.22127300262451,29,1,0,"(0, 60)",2160,2,0.99,1,1.0,1,0,0,41.4,14.27,24,1
 19-01-16_YC011,31,94,45014,2,0.99,1,0,0,43.3,14.22,12.22127300262451,29,1,1,"(60, 120)",2142,2,0.99,1,1.0,1,0,0,41.59,14.33,26,1
 19-01-16_YC011,31,94,45014,2,0.99,1,0,0,43.3,14.22,12.22127300262451,29,1,2,"(120, 180)",2182,2,0.99,1,1.0,1,0,0,44.07,14.36,22,1

@@ -1,4 +1,4 @@
-Sample,Unit,Unit_Peak_Ch,Unit_Spikes,Unit_Peaks_Wvf,Unit_vs_Temp_CS,Unit_vs_Temp_CS_t,Unit_RPV,Unit_Fp,Unit_MFR,Unit_MA,Unit_Peak_Detection_t,Unit_Drift_TR,Unit_Drif_TR_t,Chunk,Chunk_Len,Chunk_Spikes,Chunk_Peaks_Wvf,Chunk_vs_Temp_CS,Chunk_vs_Temp_CS_t,Chunk_vs_Unit_CS,Chunk_vs_Unit_CS_t,Chunk_RPV,Chunk_Fp,Chunk_MFR,Chunk_MA,Chunk_Drift_TR,Chunk_Drift_TR_t
+Sample,Unit,Unit_Peak_Ch,Unit_Spikes,Unit_Wvf_Peaks,Unit_vs_Temp_CS,Unit_vs_Temp_CS_dummy,Unit_RPV,Unit_Fp,Unit_MFR,Unit_MeanAmp,Unit_MinAmp,Unit_Missing_Spikes,Unit_Missing_Spikes_dummy,Chunk,Chunk_Len,Chunk_Spikes,Chunk_Peaks_Wvf,Chunk_vs_Temp_CS,Chunk_vs_Temp_CS_dummy,Chunk_vs_Unit_CS,Chunk_vs_Unit_CS_dummy,Chunk_RPV,Chunk_Fp,Chunk_MFR,Chunk_MA,Chunk_Missing_Spikes,Chunk_Missing_Spikes_dummy
 19-01-16_YC011,23,76,41195,2,0.96,1,0,0,38.16,13.5,12.106581821441651,86,0,0,"(0, 60)",2636,2,0.96,1,1.0,1,0,0,48.3,13.4,99,0
 19-01-16_YC011,23,76,41195,2,0.96,1,0,0,38.16,13.5,12.106581821441651,86,0,1,"(60, 120)",2626,2,0.96,1,1.0,1,0,0,47.92,13.4,84,0
 19-01-16_YC011,23,76,41195,2,0.96,1,0,0,38.16,13.5,12.106581821441651,86,0,2,"(120, 180)",1943,2,0.96,1,1.0,1,0,0,36.41,13.42,100,0
@@ -11,7 +11,7 @@ Sample,Unit,Unit_Peak_Ch,Unit_Spikes,Unit_Peaks_Wvf,Unit_vs_Temp_CS,Unit_vs_Temp
 19-01-16_YC011,23,76,41195,2,0.96,1,0,0,38.16,13.5,12.106581821441651,86,0,9,"(540, 600)",1943,2,0.96,1,1.0,1,0,0,36.05,13.41,98,0
 19-01-16_YC011,23,76,41195,2,0.96,1,0,0,38.16,13.5,12.106581821441651,86,0,10,"(600, 660)",2045,2,0.96,1,1.0,1,0,0,37.57,13.38,89,0
 19-01-16_YC011,23,76,41195,2,0.96,1,0,0,38.16,13.5,12.106581821441651,86,0,11,"(660, 720)",1981,2,0.96,1,1.0,1,0,0,36.25,13.39,81,0
-19-01-16_YC011,23,76,41195,2,0.96,1,0,0,38.16,13.5,12.106581821441651,86,0,12,"(720, 780)",1962,2,0.97,1,1.0,1,0,0,35.95,13.39,51,0
+19-01-16_YC011,23,76,41195,2,0.96,1,0,0,38.16,13.5,12.106581821441651,86,0,12,"(720, 780)",1962,2,0.97,1,1.0,1,0,0,35.95,13.39,47,0
 19-01-16_YC011,23,76,41195,2,0.96,1,0,0,38.16,13.5,12.106581821441651,86,0,13,"(780, 840)",2026,2,0.96,1,1.0,1,0,0,37.54,13.37,79,0
 19-01-16_YC011,23,76,41195,2,0.96,1,0,0,38.16,13.5,12.106581821441651,86,0,14,"(840, 900)",1903,2,0.96,1,1.0,1,0,0,35.09,13.38,87,0
 19-01-16_YC011,23,76,41195,2,0.96,1,0,0,38.16,13.5,12.106581821441651,86,0,15,"(900, 960)",1985,2,0.96,1,1.0,1,0,0,37.06,13.35,85,0
