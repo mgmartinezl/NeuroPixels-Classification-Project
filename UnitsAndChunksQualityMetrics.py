@@ -48,13 +48,13 @@ all_units = get_units(dp)
 print("All units in sample:", len(all_units))
 print(f"Good units found in current sample: {len(good_units)} --> {good_units}")
 # units with problems... [93, 160, 192, 204, 234]
-good_units = [18, 19, 20, 23, 24, 25, 26, 27, 28]
+# good_units = [18, 19, 20, 23, 24, 25, 26, 27, 28]
 # good_units = [29, 30, 31, 33, 34, 35, 36, 37, 38]
 # good_units = [39, 40, 41, 42, 43, 44, 47, 49, 52]
 # good_units = [53, 54, 55, 64, 67, 68, 69, 73, 76]
 # good_units = [78, 81, 83, 85, 87, 88, 95, 98, 99]
 # good_units = [101, 102, 107, 108, 110, 112, 113, 120]
-# good_units = [121, 122, 154, 160, 192, 204, 234]
+# good_units = [121, 122, 154]
 
 total = 0
 for unit in good_units:

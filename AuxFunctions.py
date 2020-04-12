@@ -60,8 +60,8 @@ def curve_fit_(x, num, p1):
     return popt
 
 
-def ampli_fit_gaussian_cut(a):
-    a = np.asarray(a, dtype='float64')
+def ampli_fit_gaussian_cut(x):
+    a = np.asarray(x, dtype='float64')
     num, bins = np.histogram(a, bins=80)
     mode_seed = bins[np.where(num == max(num))]
     bin_steps = np.diff(bins[0:2])[0]
@@ -127,10 +127,9 @@ def range_normalization(x):
     return norm_x
 
 
-def waveform_mean_subtraction(norm_waveform_pk_ch):
-    ms_norm_waveform_pk_ch = (norm_waveform_pk_ch - np.mean(norm_waveform_pk_ch[0:10])
-                                     ) / np.max(norm_waveform_pk_ch)
-    return ms_norm_waveform_pk_ch
+def waveform_mean_subtraction(wvf):
+    ms_wvf = (wvf - np.mean(wvf[0:10])) / np.max(wvf)
+    return ms_wvf
 
 
 def waveform_sigma(wvf):
@@ -138,15 +137,13 @@ def waveform_sigma(wvf):
     return sigma
 
 
-def detect_peaks(waveform_pk_ch):
+def detect_peaks(wvf):
     detected_peaks = []
     xs = []
     ys = []
 
-    s = waveform_sigma(waveform_pk_ch)
-
     for lk in list(range(5, 60, 5)):
-        detected_peaks.append(peakdetect(waveform_pk_ch, lookahead=lk))
+        detected_peaks.append(peakdetect(wvf, lookahead=lk))
 
     detected_peaks = [x for x in detected_peaks[0] if x != []]
     detected_peaks = [item for items in detected_peaks for item in items]
@@ -157,7 +154,6 @@ def detect_peaks(waveform_pk_ch):
             ys.append(peaks[1])
 
     count_wvf_peaks = len(xs)
-
     return xs, ys, count_wvf_peaks
 
 
@@ -174,9 +170,9 @@ def detect_biggest_peak(wvf):
     return biggest_peak_negative
 
 
-def cosine_similarity(wavf1, wvf2):
-    dot_product = np.dot(wavf1, wvf2)
-    norm_wavf1 = np.linalg.norm(wavf1)
+def cosine_similarity(wvf1, wvf2):
+    dot_product = np.dot(wvf1, wvf2)
+    norm_wavf1 = np.linalg.norm(wvf1)
     norm_wvf2 = np.linalg.norm(wvf2)
     cos_sim = dot_product / (norm_wavf1 * norm_wvf2)
     cos_sim = round(float(cos_sim), 2)
@@ -203,7 +199,7 @@ def rvp_and_fp(isi, N, T, tauR=0.002, tauC=0.0005, fs=30000):
         rts = np.roots([-1, 1, -rpv/a])
         Fp = min(rts)  # r >> solve for Fp
         overestimate = 0
-        if isinstance(Fp, complex):  # function returns imaginary number if r is too high.
+        if isinstance(Fp, complex):
             overestimate = 1
             if rpv < N:
                 Fp = int(100 * round(rpv / (2 * (tauR - tauC) * (N - rpv)), 2)) # Integer

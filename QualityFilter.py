@@ -18,6 +18,6 @@ df = pd.concat(samples, axis=0, ignore_index=True)
 df.to_csv(f'{src}/Summary-Chunks-Sample-{sample}.csv', index=False)
 
 df_units = pd.read_csv(f'{src}/Summary-Chunks-Sample-{sample}.csv')
-df_units = df_units.iloc[:, : 14]
+df_units = df_units.iloc[:, : 18]
 df_units = df_units.drop_duplicates()
 df_units.to_csv(f'{src}/Summary-Units-Sample-{sample}.csv', index=False)
