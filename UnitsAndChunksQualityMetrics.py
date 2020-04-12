@@ -48,7 +48,7 @@ all_units = get_units(dp)
 print("All units in sample:", len(all_units))
 print(f"Good units found in current sample: {len(good_units)} --> {good_units}")
 # units with problems... [93, 160, 192, 204, 234]
-# good_units = [18, 19, 20, 23, 24, 25, 26, 27, 28]
+good_units = [18, 19, 20, 23, 24, 25, 26, 27, 28]
 # good_units = [29, 30, 31, 33, 34, 35, 36, 37, 38]
 # good_units = [39, 40, 41, 42, 43, 44, 47, 49, 52]
 # good_units = [53, 54, 55, 64, 67, 68, 69, 73, 76]
@@ -56,27 +56,27 @@ print(f"Good units found in current sample: {len(good_units)} --> {good_units}")
 # good_units = [101, 102, 107, 108, 110, 112, 113, 120]
 # good_units = [121, 122, 154, 160, 192, 204, 234]
 
-# good_units = [122, 154, 160, 192, 204, 234]
-good_units = [93]
-
 total = 0
 for unit in good_units:
 
     l_samples = []
     l_units = []
     l_unit_spikes = []
+    l_unit_spikes_dummy = []
     l_unit_peak_ch = []
     l_unit_wvf_peaks = []
     l_unit_temp_cs = []
     l_unit_temp_cs_dummy = []
     l_unit_rpv = []
     l_unit_fp = []
+    l_unit_fp_dummy = []
     l_unit_mfr = []
     l_unit_mean_amp = []
     l_unit_min_amp = []
     l_unit_missing_spikes = []
     l_unit_missing_spikes_dummy = []
     l_unit_big_peak_neg_dummy = []
+    l_unit_count_wvf_peaks_dummy = []
     l_chunks = []
     l_chunk_len = []
     l_chunk_spikes = []
@@ -92,6 +92,7 @@ for unit in good_units:
     l_chunk_missing_spikes = []
     l_chunk_missing_spikes_dummy = []
     l_chunk_big_peak_neg_dummy = []
+    l_chunk_count_wvf_peaks_dummy = []
 
     print(f'Unit >>>> {unit}')
 
@@ -119,6 +120,9 @@ for unit in good_units:
 
     if spikes_unit_20 != 0:
 
+        # >> SPIKES DUMMY FILTER <<
+        spikes_unit_dummy = 1 if spikes_unit_20 >= 300 else 0
+
         # >> UNIT INTER SPIKE INTERVAL <<
         isi_unit = compute_isi(trn_ms_unit_20, exclusion_quantile)
 
@@ -134,6 +138,7 @@ for unit in good_units:
 
         # >> UNIT MEAN WAVEFORM PEAK DETECTION <<
         xs, ys, count_unit_wvf_peaks = detect_peaks(ms_norm_waveform_peak_channel)
+        count_unit_wvf_peaks_dummy = 1 if count_unit_wvf_peaks <= 3 else 0
 
         # >> UNIT MEAN WAVEFORM BIGGEST PEAK DETECTION <<
         unit_biggest_peak_negative = detect_biggest_peak(ms_norm_waveform_peak_channel)
@@ -199,17 +204,15 @@ for unit in good_units:
 
         # >> UNIT ACG <<
 
-        unit_ACG, x_unit, y_unit, ylim1_unit, yl_unit, ylim2_unit = None, None, None, None, None, None
+        unit_ACG, x_unit, y_unit, y_lim1_unit, yl_unit, y_lim2_unit = None, None, None, None, None, None
 
         try:
             unit_ACG = acg(dp, unit, c_bin, c_win, subset_selection=[(0, unit_size_s)])
             x_unit = np.linspace(-c_win * 1. / 2, c_win * 1. / 2, unit_ACG.shape[0])
             y_unit = unit_ACG.copy()
-            ylim1_unit = 0
+            y_lim1_unit = 0
             yl_unit = max(unit_ACG)
-            ylim2_unit = int(yl_unit) + 5 - (yl_unit % 5)
-
-            print('ylim2_unit', ylim2_unit)
+            y_lim2_unit = int(yl_unit) + 5 - (yl_unit % 5)
 
         except ValueError:
             pass
@@ -243,9 +246,9 @@ for unit in good_units:
         # ******************************************************************************************************
         # ACG FOR UNIT
 
-        if all(v is not None for v in [unit_ACG, x_unit, y_unit, ylim1_unit, yl_unit, ylim2_unit]):
-            axs[0, 1].bar(x=x_unit, height=y_unit, width=0.2, color='salmon', bottom=ylim1_unit)
-            axs[0, 1].set_ylim([ylim1_unit, ylim2_unit])
+        if all(v is not None for v in [unit_ACG, x_unit, y_unit, y_lim1_unit, yl_unit, y_lim2_unit]):
+            axs[0, 1].bar(x=x_unit, height=y_unit, width=0.2, color='salmon', bottom=y_lim1_unit)
+            axs[0, 1].set_ylim([y_lim1_unit, y_lim2_unit])
             axs[0, 1].set_ylabel("Autocorrelation (Hz)", size=9, color='#939799')
             axs[0, 1].set_xlabel("Time (ms)", size=9)
             axs[0, 1].set_title(f' \n \n Autocorrelogram', fontsize=9, fontname="DejaVu Sans", loc='center',
@@ -323,14 +326,17 @@ for unit in good_units:
             # >> SAVE UNIT INFORMATION <<
             l_samples.append(sample)
             l_units.append(unit)
-            l_unit_spikes.append(spikes_unit_20)  # Criterion for units. >= 300
+            l_unit_spikes.append(spikes_unit_20)
+            l_unit_spikes_dummy.append(spikes_unit_dummy)  # Criterion for units. >= 300
+            l_unit_count_wvf_peaks_dummy.append(count_unit_wvf_peaks_dummy)
             l_unit_peak_ch.append(peak_channel)
             l_unit_wvf_peaks.append(count_unit_wvf_peaks)
             l_unit_big_peak_neg_dummy.append(unit_biggest_peak_negative)
             l_unit_temp_cs.append(cos_similarity_template_unit)
             l_unit_temp_cs_dummy.append(threshold_cos_similarity_template_unit)
             l_unit_rpv.append(RVP_unit)
-            l_unit_fp.append(Fp_unit)  # Criterion for units. < 5%
+            l_unit_fp.append(Fp_unit)
+            l_unit_fp_dummy.append(Fp_unit_threshold)  # Criterion for units. < 5%
             l_unit_mfr.append(MFR_unit)
             l_unit_mean_amp.append(MA_unit)
             l_unit_min_amp.append(min_amp_unit)
@@ -367,6 +373,8 @@ for unit in good_units:
             # >> MEAN CHUNK WAVEFORM PEAK DETECTION <<
             xs_c, ys_c, count_chunk_wvf_peaks = detect_peaks(ms_norm_chunk_waveform_peak_channel)
             l_chunk_wvf_peaks.append(count_chunk_wvf_peaks)  # Criterion for chunks. <= 3
+            chunk_count_wvf_peaks_dummy = 1 if count_chunk_wvf_peaks <= 3 else 0
+            l_chunk_count_wvf_peaks_dummy.append(chunk_count_wvf_peaks_dummy)
 
             # >> MEAN CHUNK WAVEFORM BIGGEST PEAK DETECTION <<
             chunk_biggest_peak_negative = detect_biggest_peak(ms_norm_chunk_waveform_peak_channel)
@@ -586,11 +594,15 @@ for unit in good_units:
              'Unit': l_units,
              'Unit_Peak_Ch': l_unit_peak_ch,
              'Unit_Spikes': l_unit_spikes,
+             'Unit_Spikes_dummy': spikes_unit_dummy,
              'Unit_Wvf_Peaks': l_unit_wvf_peaks,
+             'Unit_Wvf_Peaks_dummy': count_unit_wvf_peaks_dummy,
+             'Unit_Biggest_Peak': l_unit_big_peak_neg_dummy,
              'Unit_vs_Temp_CS': l_unit_temp_cs,
              'Unit_vs_Temp_CS_dummy': l_unit_temp_cs_dummy,
              'Unit_RPV': l_unit_rpv,
              'Unit_Fp': l_unit_fp,
+             'Unit_Fp_dummy': l_unit_fp_dummy,
              'Unit_MFR': l_unit_mfr,
              'Unit_MeanAmp': l_unit_mean_amp,
              'Unit_MinAmp': l_unit_min_amp,
@@ -599,7 +611,9 @@ for unit in good_units:
              'Chunk': l_chunks,
              'Chunk_Len': l_chunk_len,
              'Chunk_Spikes': l_chunk_spikes,
-             'Chunk_Peaks_Wvf': l_chunk_wvf_peaks,
+             'Chunk_Wvf_Peaks': l_chunk_wvf_peaks,
+             'Chunk_Wvf_Peaks_dummy': l_chunk_count_wvf_peaks_dummy,
+             'Chunk_Biggest_Peak': l_chunk_big_peak_neg_dummy,
              'Chunk_vs_Temp_CS': l_chunk_temp_cs,
              'Chunk_vs_Temp_CS_dummy': l_chunk_temp_cs_dummy,
              'Chunk_vs_Unit_CS': l_chunk_unit_cs,
