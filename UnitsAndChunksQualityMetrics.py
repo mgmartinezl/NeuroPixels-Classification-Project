@@ -163,8 +163,8 @@ for unit in good_units:
             cosine_similarity(ms_norm_unit_template_peak_channel, ms_norm_waveform_peak_channel)
 
         # >> UNIT FRACTION OF CONTAMINATION AND REFRACTORY PERIOD VIOLATIONS <<
-        RVP_unit, Fp_unit = rvp_and_fp(isi_unit, N=spikes_unit_20, T=unit_size_ms)
-        Fp_unit_threshold = 1 if Fp_unit <= fp_threshold else 0
+        rpv_unit, fp_unit = rvp_and_fp(isi_unit, N=spikes_unit_20, T=unit_size_ms)
+        fp_unit_threshold = 1 if fp_unit <= fp_threshold else 0
 
         # >> UNIT MEAN FIRING RATE <<
         MFR_unit = mean_firing_rate(isi_unit)
@@ -177,7 +177,7 @@ for unit in good_units:
         amplitudes_unit_20 = amplitudes_unit[unit_mask_20]
 
         # >> UNIT MEAN AMPLITUDE <<
-        MA_unit = mean_amplitude(remove_outliers(amplitudes_unit_20, exclusion_quantile))
+        ma_unit = mean_amplitude(remove_outliers(amplitudes_unit_20, exclusion_quantile))
 
         # >> UNIT AMPLITUDES NORMALIZATION <<
         norm_amplitudes_unit_20 = range_normalization(amplitudes_unit_20)
@@ -266,8 +266,8 @@ for unit in good_units:
         isi_unit_bins = estimate_bins(isi_unit_whole, rule='Fd')
         axs[1, 0].hist(isi_unit_whole, bins=isi_unit_bins, color='lightgray', histtype='barstacked', label='ISI')
         axs[1, 0].set_xlabel('Inter Spike Interval')
-        leg_line_mfr = [f'Refractory Period Violations = {RVP_unit}  \n'
-                        f'Fraction of contamination = {Fp_unit}  \n'
+        leg_line_mfr = [f'Refractory Period Violations = {rpv_unit}  \n'
+                        f'Fraction of contamination = {fp_unit}  \n'
                         f'Mean Firing Rate = {MFR_unit}  \n']
         axs[1, 0].axvline(x=MFR_unit, ymin=0, ymax=0.95, linestyle='--', color='salmon', label='mfr', alpha=0)
         leg_1_0 = axs[1, 0].legend(leg_line_mfr, loc='best', frameon=False, fontsize=9)
@@ -333,11 +333,11 @@ for unit in good_units:
             l_unit_big_peak_neg_dummy.append(unit_biggest_peak_negative)
             l_unit_temp_cs.append(cos_similarity_template_unit)
             l_unit_temp_cs_dummy.append(threshold_cos_similarity_template_unit)
-            l_unit_rpv.append(RVP_unit)
-            l_unit_fp.append(Fp_unit)
-            l_unit_fp_dummy.append(Fp_unit_threshold)
+            l_unit_rpv.append(rpv_unit)
+            l_unit_fp.append(fp_unit)
+            l_unit_fp_dummy.append(fp_unit_threshold)
             l_unit_mfr.append(MFR_unit)
-            l_unit_mean_amp.append(MA_unit)
+            l_unit_mean_amp.append(ma_unit)
             l_unit_min_amp.append(min_amp_unit)
             l_unit_missing_spikes.append(unit_percent_missing)
             l_unit_missing_spikes_dummy.append(drift_free_unit)
@@ -404,20 +404,20 @@ for unit in good_units:
             isi_chunk_whole = compute_isi(trn_ms_chunk)
 
             # >> CHUNK FRACTION OF CONTAMINATION AND REFRACTORY PERIOD VIOLATIONS <<
-            RVP_chunk, Fp_chunk = rvp_and_fp(isi_chunk, N=spikes_chunk, T=chunk_size_ms)
-            l_chunk_rpv.append(RVP_chunk)
-            l_chunk_fp.append(Fp_chunk)
+            rpv_chunk, fp_chunk = rvp_and_fp(isi_chunk, N=spikes_chunk, T=chunk_size_ms)
+            l_chunk_rpv.append(rpv_chunk)
+            l_chunk_fp.append(fp_chunk)
 
             # >> CHUNK MEAN FIRING RATE <<
-            MFR_chunk = mean_firing_rate(isi_chunk)
-            l_chunk_mfr.append(MFR_chunk)
+            mfr_chunk = mean_firing_rate(isi_chunk)
+            l_chunk_mfr.append(mfr_chunk)
 
             # >> CHUNK AMPLITUDES <<
             amplitudes_chunk = amplitudes_unit_20[chunk_mask]
 
             # >> CHUNK MEAN AMPLITUDE <<
-            MA_chunk = mean_amplitude(remove_outliers(amplitudes_chunk, exclusion_quantile))
-            l_chunk_mean_amp.append(MA_chunk)
+            ma_chunk = mean_amplitude(remove_outliers(amplitudes_chunk, exclusion_quantile))
+            l_chunk_mean_amp.append(ma_chunk)
 
             # >> CHUNK AMPLITUDES NORMALIZATION <<
             norm_amplitudes_chunk = range_normalization(amplitudes_chunk)
@@ -510,10 +510,10 @@ for unit in good_units:
             chunk_isi_bins = estimate_bins(isi_chunk_whole, rule='Fd')
             axs[1, 0].hist(isi_chunk_whole, bins=chunk_isi_bins, color='lightgray', histtype='barstacked', label='ISI')
             axs[1, 0].set_xlabel('Inter Spike Interval')
-            leg_line_mfr = [f'Refractory Period Violations = {RVP_chunk}  \n'
-                            f'Fraction of contamination = {Fp_chunk}  \n'
-                            f'Mean Firing Rate = {MFR_chunk}  \n']
-            axs[1, 0].axvline(x=MFR_chunk, ymin=0, ymax=0.95, linestyle='--', color='salmon', label='mfr', alpha=0)
+            leg_line_mfr = [f'Refractory Period Violations = {rpv_chunk}  \n'
+                            f'Fraction of contamination = {fp_chunk}  \n'
+                            f'Mean Firing Rate = {mfr_chunk}  \n']
+            axs[1, 0].axvline(x=mfr_chunk, ymin=0, ymax=0.95, linestyle='--', color='salmon', label='mfr', alpha=0)
             leg_1_0 = axs[1, 0].legend(leg_line_mfr, loc='best', frameon=False, fontsize=10)
 
             for text in leg_1_0.get_texts():
@@ -525,8 +525,8 @@ for unit in good_units:
 
             axs[1, 1].hist(amplitudes_chunk, bins=chunk_bins, color='lightgray', histtype='barstacked', label='amps')
 
-            labels_1_1 = [f'Chunk Mean Amplitude = {str(MA_chunk)} ']
-            axs[1, 1].axvline(x=MA_chunk, ymin=0, ymax=0.95, linestyle='--', color='salmon')
+            labels_1_1 = [f'Chunk Mean Amplitude = {str(ma_chunk)} ']
+            axs[1, 1].axvline(x=ma_chunk, ymin=0, ymax=0.95, linestyle='--', color='salmon')
 
             leg_1_1 = axs[1, 1].legend(labels_1_1, loc='best', frameon=False, fontsize=10)
 
