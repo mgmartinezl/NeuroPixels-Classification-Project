@@ -99,7 +99,6 @@ def ampli_fit_gaussian_cut(x, Nbins):
 
     p0 = [np.max(num), mode_seed, np.nanstd(a), np.percentile(a, 1)]
     p0 = np.asarray(p0, dtype='float64')
-    print('p0', p0)
 
     # Curve fit
     popt = curve_fit_(x, num, p0)

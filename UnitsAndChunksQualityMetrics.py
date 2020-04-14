@@ -38,10 +38,13 @@ unit_size_ms = unit_size_s * 1000
 chunk_size_s = 60
 chunk_size_ms = 60 * 1000
 samples_fr = unit_size_s * fs
-N_chunks = int(unit_size_s / chunk_size_s)
+n_chunks = int(unit_size_s / chunk_size_s)
 c_bin = 0.2
 c_win = 80
-Fp_threshold = 5  # It is already a %
+fp_threshold = 5  # It is already a %
+spikes_threshold = 300
+peaks_threshold = 3
+missing_threshold = 30
 
 # Extract good units of current sample
 good_units = get_units(dp, quality='good')
@@ -123,7 +126,7 @@ for unit in good_units:
     if spikes_unit_20 != 0:
 
         # >> SPIKES DUMMY FILTER <<
-        spikes_unit_dummy = 1 if spikes_unit_20 >= 300 else 0
+        spikes_unit_dummy = 1 if spikes_unit_20 >= spikes_threshold else 0
 
         # >> UNIT INTER SPIKE INTERVAL <<
         isi_unit = compute_isi(trn_ms_unit_20, exclusion_quantile)
@@ -141,7 +144,7 @@ for unit in good_units:
 
         # >> UNIT MEAN WAVEFORM PEAK DETECTION <<
         xs, ys, count_unit_wvf_peaks = detect_peaks(ms_norm_waveform_peak_channel)
-        count_unit_wvf_peaks_dummy = 1 if count_unit_wvf_peaks <= 3 else 0
+        count_unit_wvf_peaks_dummy = 1 if count_unit_wvf_peaks <= peaks_threshold else 0
 
         # >> UNIT MEAN WAVEFORM BIGGEST PEAK DETECTION <<
         unit_biggest_peak_negative = detect_biggest_peak(ms_norm_waveform_peak_channel)
@@ -161,7 +164,7 @@ for unit in good_units:
 
         # >> UNIT FRACTION OF CONTAMINATION AND REFRACTORY PERIOD VIOLATIONS <<
         RVP_unit, Fp_unit = rvp_and_fp(isi_unit, N=spikes_unit_20, T=unit_size_ms)
-        Fp_unit_threshold = 1 if Fp_unit <= Fp_threshold else 0
+        Fp_unit_threshold = 1 if Fp_unit <= fp_threshold else 0
 
         # >> UNIT MEAN FIRING RATE <<
         MFR_unit = mean_firing_rate(isi_unit)
@@ -172,9 +175,6 @@ for unit in good_units:
         unit_mask_20 = (spike_times_unit <= samples_fr)
         spike_times_unit_20 = spike_times_unit[unit_mask_20]
         amplitudes_unit_20 = amplitudes_unit[unit_mask_20]
-
-        # >> REMOVE OUTLIERS << I can't do this NOW! Not before the fit
-        # amplitudes_unit_20 = remove_outliers(amplitudes_unit_20, exclusion_quantile)
 
         # >> UNIT MEAN AMPLITUDE <<
         MA_unit = mean_amplitude(remove_outliers(amplitudes_unit_20, exclusion_quantile))
@@ -206,7 +206,7 @@ for unit in good_units:
             except IndexError:
                 unit_percent_missing = not_gaussian_amp_est(a, nBins=unit_bins)
 
-        drift_free_unit = 1 if unit_percent_missing <= 30 else 0
+        drift_free_unit = 1 if unit_percent_missing <= missing_threshold else 0
 
         # >> UNIT ACG <<
         unit_ACG, x_unit, y_unit, y_lim1_unit, yl_unit, y_lim2_unit = None, None, None, None, None, None
@@ -318,7 +318,7 @@ for unit in good_units:
 
         all_chunks_dict = {}
 
-        for i in range(N_chunks):
+        for i in range(n_chunks):
 
             print(f'Chunk {i}')
 
@@ -326,7 +326,7 @@ for unit in good_units:
             l_samples.append(sample)
             l_units.append(unit)
             l_unit_spikes.append(spikes_unit_20)
-            l_unit_spikes_dummy.append(spikes_unit_dummy)  # Criterion for units. >= 300
+            l_unit_spikes_dummy.append(spikes_unit_dummy)
             l_unit_count_wvf_peaks_dummy.append(count_unit_wvf_peaks_dummy)
             l_unit_peak_ch.append(peak_channel)
             l_unit_wvf_peaks.append(count_unit_wvf_peaks)
@@ -335,7 +335,7 @@ for unit in good_units:
             l_unit_temp_cs_dummy.append(threshold_cos_similarity_template_unit)
             l_unit_rpv.append(RVP_unit)
             l_unit_fp.append(Fp_unit)
-            l_unit_fp_dummy.append(Fp_unit_threshold)  # Criterion for units. < 5%
+            l_unit_fp_dummy.append(Fp_unit_threshold)
             l_unit_mfr.append(MFR_unit)
             l_unit_mean_amp.append(MA_unit)
             l_unit_min_amp.append(min_amp_unit)
@@ -372,7 +372,7 @@ for unit in good_units:
             # >> MEAN CHUNK WAVEFORM PEAK DETECTION <<
             xs_c, ys_c, count_chunk_wvf_peaks = detect_peaks(ms_norm_chunk_waveform_peak_channel)
             l_chunk_wvf_peaks.append(count_chunk_wvf_peaks)  # Criterion for chunks. <= 3
-            chunk_count_wvf_peaks_dummy = 1 if count_chunk_wvf_peaks <= 3 else 0
+            chunk_count_wvf_peaks_dummy = 1 if count_chunk_wvf_peaks <= peaks_threshold else 0
             l_chunk_count_wvf_peaks_dummy.append(chunk_count_wvf_peaks_dummy)
 
             # >> MEAN CHUNK WAVEFORM BIGGEST PEAK DETECTION <<
@@ -446,7 +446,7 @@ for unit in good_units:
                     chunk_percent_missing = not_gaussian_amp_est(a_c, nBins=chunk_bins*10)
 
             l_chunk_missing_spikes.append(chunk_percent_missing)  # Criterion for chunks. <= 30
-            drift_free_chunk = 1 if chunk_percent_missing <= 30 else 0
+            drift_free_chunk = 1 if chunk_percent_missing <= missing_threshold else 0
             l_chunk_missing_spikes_dummy.append(drift_free_unit)
 
             # *********************************************************************************************************
