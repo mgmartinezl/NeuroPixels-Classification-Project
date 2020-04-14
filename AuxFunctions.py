@@ -25,6 +25,26 @@ import matplotlib
 from typing import *
 import scipy.optimize as opt
 import scipy.stats as stats
+from scipy.stats import iqr
+
+
+def estimate_bins(x, rule):
+
+    n = len(x)
+    maxi = max(x)
+    mini = min(x)
+
+    # Freedman-Diaconis rule
+    if rule == 'Fd':
+        iqr_ = iqr(x)
+        h = 2 * iqr_ * (n ** (-1/3))
+        b = int(round((maxi-mini)/h, 0))
+        return b
+
+    # Square-root choice
+    elif rule == 'Sqrt':
+        b = int(np.sqrt(n))
+        return b
 
 
 def not_gaussian_amp_est(x, nBins):
@@ -40,8 +60,8 @@ def not_gaussian_amp_est(x, nBins):
     return percent_missing
 
 
-def gaussian_amp_est(x):
-    x1, p0 = ampli_fit_gaussian_cut(x)
+def gaussian_amp_est(x, Nbins):
+    x1, p0 = ampli_fit_gaussian_cut(x, Nbins)
     n_fit = gaussian_cut(x1, a=p0[0], mu=p0[1], sigma=p0[2], xcut=p0[3])
     min_amp = p0[3]
     n_fit_no_cut = gaussian_cut(x1, a=p0[0], mu=p0[1], sigma=p0[2], xcut=0)
@@ -60,9 +80,9 @@ def curve_fit_(x, num, p1):
     return popt
 
 
-def ampli_fit_gaussian_cut(x):
+def ampli_fit_gaussian_cut(x, Nbins):
     a = np.asarray(x, dtype='float64')
-    num, bins = np.histogram(a, bins=80)
+    num, bins = np.histogram(a, bins=Nbins)
     mode_seed = bins[np.where(num == max(num))]
     bin_steps = np.diff(bins[0:2])[0]
     x = bins[0:len(bins) - 1] + bin_steps / 2

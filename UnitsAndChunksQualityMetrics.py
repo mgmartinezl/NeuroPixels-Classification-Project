@@ -55,6 +55,7 @@ print(f"Good units found in current sample: {len(good_units)} --> {good_units}")
 # good_units = [78, 81, 83, 85, 87, 88, 95, 98, 99]
 # good_units = [101, 102, 107, 108, 110, 112, 113, 120]
 # good_units = [121, 122, 154]
+good_units = [26]
 
 total = 0
 for unit in good_units:
@@ -190,8 +191,12 @@ for unit in good_units:
         min_amp_unit = None
         unit_percent_missing = None
 
+        # >> ESTIMATE BINS FOR AMPLITUDES HISTOGRAM <<
+        unit_bins = estimate_bins(a, rule='Fd')
+        # unit_bins = estimate_bins(a, rule='Sqrt')
+
         try:
-            x, p0, min_amp_unit, n_fit, n_fit_no_cut, unit_percent_missing = gaussian_amp_est(a)
+            x, p0, min_amp_unit, n_fit, n_fit_no_cut, unit_percent_missing = gaussian_amp_est(a, unit_bins)
 
         except RuntimeError:
             try:
@@ -203,7 +208,6 @@ for unit in good_units:
         drift_free_unit = 1 if unit_percent_missing <= 30 else 0
 
         # >> UNIT ACG <<
-
         unit_ACG, x_unit, y_unit, y_lim1_unit, yl_unit, y_lim2_unit = None, None, None, None, None, None
 
         try:
@@ -312,8 +316,8 @@ for unit in good_units:
         if not os.path.exists(unit_path):
             os.makedirs(unit_path)
 
-        fig.savefig(f"Images/Pipeline/Sample_{sample}/Unit_{unit}/sample-{sample}-unit-{unit}.png")
-
+        # fig.savefig(f"Images/Pipeline/Sample_{sample}/Unit_{unit}/sample-{sample}-unit-{unit}.png")
+        
         # ******************************************************************************************************
         # >> CHUNKS PROCESSING <<
 
@@ -435,8 +439,12 @@ for unit in good_units:
             min_amp_c = None
             chunk_percent_missing = None
 
+            # >> ESTIMATE BINS FOR AMPLITUDES HISTOGRAM <<
+            chunk_bins = estimate_bins(a_c, rule='Fd')
+            # chunk_bins = estimate_bins(a_c, rule='Sqrt')
+
             try:
-                x_c, p0_c, min_amp_c, n_fit_c, n_fit_no_cut_c, chunk_percent_missing = gaussian_amp_est(a_c)
+                x_c, p0_c, min_amp_c, n_fit_c, n_fit_no_cut_c, chunk_percent_missing = gaussian_amp_est(a_c, chunk_bins)
 
             except RuntimeError:
                 try:
@@ -451,6 +459,8 @@ for unit in good_units:
 
             # *********************************************************************************************************
             # GRAPHICS!
+
+            # plot_acg(dp, unit, subset_selection=[(chunk_start_time, chunk_end_time)], saveFig=False)
 
             fig, axs = plt.subplots(2, 3, figsize=(20, 12))
             fig.suptitle(
@@ -586,8 +596,8 @@ for unit in good_units:
             if not os.path.exists(unit_chunks_path):
                 os.makedirs(unit_chunks_path)
 
-            fig.savefig(
-                f"Images/Pipeline/Sample_{sample}/Unit_{unit}/Chunks/sample-{sample}-unit-{unit}-chunk-{i}-{chunk_len}.png")
+            #fig.savefig(
+            #    f"Images/Pipeline/Sample_{sample}/Unit_{unit}/Chunks/sample-{sample}-unit-{unit}-chunk-{i}-{chunk_len}.png")
 
         df = pd.DataFrame(
             {'Sample': l_samples,
@@ -627,8 +637,8 @@ for unit in good_units:
             }
         )
 
-        df.to_csv(f'Images/Pipeline/Sample_{sample}/Unit_{unit}/Summary-sample-{sample}-unit-{unit}.csv', index=False)
-        print(f'Summary-sample-{sample}-unit-{unit}.csv  ---> Successfully created!')
+        #df.to_csv(f'Images/Pipeline/Sample_{sample}/Unit_{unit}/Summary-sample-{sample}-unit-{unit}.csv', index=False)
+        #print(f'Summary-sample-{sample}-unit-{unit}.csv  ---> Successfully created!')
 
         total += 1
         print('--- Progress: ', total, 'of', len(good_units))
