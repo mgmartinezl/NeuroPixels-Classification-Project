@@ -99,6 +99,7 @@ def ampli_fit_gaussian_cut(x, Nbins):
 
     p0 = [np.max(num), mode_seed, np.nanstd(a), np.percentile(a, 1)]
     p0 = np.asarray(p0, dtype='float64')
+    print('p0', p0)
 
     # Curve fit
     popt = curve_fit_(x, num, p0)
@@ -131,11 +132,15 @@ def compute_acg(dp, unit, cbin=0.2, cwin=80):
     return x, y, ylim1, ylim2
 
 
-def compute_isi(trn, quantile):
+def compute_isi(trn, *args, **kwargs):
+    quantile = kwargs.get('quantile', None)
     diffs = np.diff(trn)
     isi_ = np.asarray(diffs, dtype='float64')
-    isi_ = isi_[(isi_ >= np.quantile(isi_, quantile)) & (isi_ <= np.quantile(isi_, 1 - quantile))]
-    return isi_
+    if quantile:
+        isi_ = isi_[(isi_ >= np.quantile(isi_, quantile)) & (isi_ <= np.quantile(isi_, 1 - quantile))]
+        return isi_
+    else:
+        return isi_
 
 
 def range_normalization(x):
@@ -200,7 +205,7 @@ def cosine_similarity(wvf1, wvf2):
     return cos_sim, cos_sim_t
 
 
-def rvp_and_fp(isi, N, T, tauR=0.002, tauC=0.0005, fs=30000):
+def rvp_and_fp(isi, N, T, tauR=0.002, tauC=0.0005):
 
     # based on Hill et al., J Neuro, 2011
     # N = spikes_unit
@@ -208,7 +213,6 @@ def rvp_and_fp(isi, N, T, tauR=0.002, tauC=0.0005, fs=30000):
     # tauR = 2  # tauR: refractory period >> 2 milliseconds
     # tauC = 0.5  # tauC: censored period >> 0.5 milliseconds
 
-    # rpv = sum(isi <= tauR*fs/1000)  # Refractory period violations: in spikes
     rpv = sum(isi <= tauR)
     a = 2 * (tauR - tauC) * (N ** 2) / T  # In spikes >> r = 2*(tauR - tauC) * N^2 * (1-Fp) * Fp / T >> solve for Fp
 
@@ -217,7 +221,7 @@ def rvp_and_fp(isi, N, T, tauR=0.002, tauC=0.0005, fs=30000):
         overestimate = 0
     else:
         rts = np.roots([-1, 1, -rpv/a])
-        Fp = min(rts)  # r >> solve for Fp
+        Fp = int(100 * round(min(rts), 2))  # r >> solve for Fp
         overestimate = 0
         if isinstance(Fp, complex):
             overestimate = 1

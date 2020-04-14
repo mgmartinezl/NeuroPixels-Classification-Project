@@ -41,6 +41,7 @@ samples_fr = unit_size_s * fs
 N_chunks = int(unit_size_s / chunk_size_s)
 c_bin = 0.2
 c_win = 80
+Fp_threshold = 5  # It is already a %
 
 # Extract good units of current sample
 good_units = get_units(dp, quality='good')
@@ -126,6 +127,7 @@ for unit in good_units:
 
         # >> UNIT INTER SPIKE INTERVAL <<
         isi_unit = compute_isi(trn_ms_unit_20, exclusion_quantile)
+        isi_unit_whole = compute_isi(trn_ms_unit_20)
 
         # >> UNIT WAVEFORM AROUND PEAK CHANNEL <<
         waveform_peak_channel = np.mean(wvf(dp, unit, t_waveforms=82, subset_selection=[(0, unit_size_s)])
@@ -158,8 +160,8 @@ for unit in good_units:
             cosine_similarity(ms_norm_unit_template_peak_channel, ms_norm_waveform_peak_channel)
 
         # >> UNIT FRACTION OF CONTAMINATION AND REFRACTORY PERIOD VIOLATIONS <<
-        RVP_unit, Fp_unit = rvp_and_fp(isi_unit, N=spikes_unit_20, T=unit_size_ms, tauR=2, tauC=0.5)
-        Fp_unit_threshold = 1 if Fp_unit <= 5 else 0
+        RVP_unit, Fp_unit = rvp_and_fp(isi_unit, N=spikes_unit_20, T=unit_size_ms)
+        Fp_unit_threshold = 1 if Fp_unit <= Fp_threshold else 0
 
         # >> UNIT MEAN FIRING RATE <<
         MFR_unit = mean_firing_rate(isi_unit)
@@ -171,11 +173,11 @@ for unit in good_units:
         spike_times_unit_20 = spike_times_unit[unit_mask_20]
         amplitudes_unit_20 = amplitudes_unit[unit_mask_20]
 
-        # >> REMOVE OUTLIERS << I can't do this NOW!
+        # >> REMOVE OUTLIERS << I can't do this NOW! Not before the fit
         # amplitudes_unit_20 = remove_outliers(amplitudes_unit_20, exclusion_quantile)
 
         # >> UNIT MEAN AMPLITUDE <<
-        MA_unit = mean_amplitude(amplitudes_unit_20)
+        MA_unit = mean_amplitude(remove_outliers(amplitudes_unit_20, exclusion_quantile))
 
         # >> UNIT AMPLITUDES NORMALIZATION <<
         norm_amplitudes_unit_20 = range_normalization(amplitudes_unit_20)
@@ -193,17 +195,16 @@ for unit in good_units:
 
         # >> ESTIMATE BINS FOR AMPLITUDES HISTOGRAM <<
         unit_bins = estimate_bins(a, rule='Fd')
-        # unit_bins = estimate_bins(a, rule='Sqrt')
 
         try:
             x, p0, min_amp_unit, n_fit, n_fit_no_cut, unit_percent_missing = gaussian_amp_est(a, unit_bins)
 
         except RuntimeError:
             try:
-                unit_percent_missing = not_gaussian_amp_est(a, nBins=200)
+                unit_percent_missing = not_gaussian_amp_est(a, nBins=unit_bins)
 
             except IndexError:
-                unit_percent_missing = not_gaussian_amp_est(a, nBins=500)
+                unit_percent_missing = not_gaussian_amp_est(a, nBins=unit_bins)
 
         drift_free_unit = 1 if unit_percent_missing <= 30 else 0
 
@@ -262,15 +263,9 @@ for unit in good_units:
         # ******************************************************************************************************
         # UNIT ISI HISTOGRAM AND MEAN FIRING RATE GRAPH
 
-        # Compute ideal number of bins with Freedman-Diaconis’s Rule
-        len_ISI = int(len(isi_unit))
-        no_RVP = [i for i in isi_unit if i >= 2.0]  # 2ms
-        len_no_RVP = len(no_RVP)
-        bins = int(np.floor((len_ISI ** (1 / 3)))) * 10
-
-        axs[1, 0].hist(isi_unit, bins=bins, color='lightgray', histtype='barstacked', label='ISI')
+        isi_unit_bins = estimate_bins(isi_unit_whole, rule='Fd')
+        axs[1, 0].hist(isi_unit_whole, bins=isi_unit_bins, color='lightgray', histtype='barstacked', label='ISI')
         axs[1, 0].set_xlabel('Inter Spike Interval')
-
         leg_line_mfr = [f'Refractory Period Violations = {RVP_unit}  \n'
                         f'Fraction of contamination = {Fp_unit}  \n'
                         f'Mean Firing Rate = {MFR_unit}  \n']
@@ -285,7 +280,7 @@ for unit in good_units:
         # % OF MISSING SPIKES
 
         if all(v is not None for v in [x, p0, n_fit, n_fit_no_cut, min_amp_unit, unit_percent_missing]):
-            axs[1, 1].hist(a, bins=100, orientation='vertical', color='lightgray')
+            axs[1, 1].hist(a, bins=unit_bins, orientation='vertical', color='lightgray')
             axs[1, 1].plot(x, n_fit_no_cut, color='silver')
             axs[1, 1].plot(x, n_fit, color='gold')
             axs[1, 1].set_ylabel("# of spikes", size=9, color='#939799')
@@ -299,7 +294,7 @@ for unit in good_units:
                 lh.set_alpha(0)
 
         else:
-            axs[1, 1].hist(a, bins=100, orientation='vertical', color='salmon')
+            axs[1, 1].hist(a, bins=unit_bins, orientation='vertical', color='salmon')
 
         # ******************************************************************************************************
         # FORMATTING
@@ -316,7 +311,7 @@ for unit in good_units:
         if not os.path.exists(unit_path):
             os.makedirs(unit_path)
 
-        # fig.savefig(f"Images/Pipeline/Sample_{sample}/Unit_{unit}/sample-{sample}-unit-{unit}.png")
+        fig.savefig(f"Images/Pipeline/Sample_{sample}/Unit_{unit}/sample-{sample}-unit-{unit}.png")
         
         # ******************************************************************************************************
         # >> CHUNKS PROCESSING <<
@@ -406,9 +401,10 @@ for unit in good_units:
 
             # >> CHUNK INTER SPIKE INTERVAL <<
             isi_chunk = compute_isi(trn_ms_chunk, exclusion_quantile)
+            isi_chunk_whole = compute_isi(trn_ms_chunk)
 
             # >> CHUNK FRACTION OF CONTAMINATION AND REFRACTORY PERIOD VIOLATIONS <<
-            RVP_chunk, Fp_chunk = rvp_and_fp(isi_chunk, N=spikes_chunk, T=chunk_size_ms, tauR=2, tauC=0.5)
+            RVP_chunk, Fp_chunk = rvp_and_fp(isi_chunk, N=spikes_chunk, T=chunk_size_ms)
             l_chunk_rpv.append(RVP_chunk)
             l_chunk_fp.append(Fp_chunk)
 
@@ -419,11 +415,8 @@ for unit in good_units:
             # >> CHUNK AMPLITUDES <<
             amplitudes_chunk = amplitudes_unit_20[chunk_mask]
 
-            # >> REMOVE OUTLIERS <<
-            amplitudes_chunk = remove_outliers(amplitudes_chunk, exclusion_quantile)
-
             # >> CHUNK MEAN AMPLITUDE <<
-            MA_chunk = mean_amplitude(amplitudes_chunk)
+            MA_chunk = mean_amplitude(remove_outliers(amplitudes_chunk, exclusion_quantile))
             l_chunk_mean_amp.append(MA_chunk)
 
             # >> CHUNK AMPLITUDES NORMALIZATION <<
@@ -441,17 +434,16 @@ for unit in good_units:
 
             # >> ESTIMATE BINS FOR AMPLITUDES HISTOGRAM <<
             chunk_bins = estimate_bins(a_c, rule='Fd')
-            # chunk_bins = estimate_bins(a_c, rule='Sqrt')
 
             try:
                 x_c, p0_c, min_amp_c, n_fit_c, n_fit_no_cut_c, chunk_percent_missing = gaussian_amp_est(a_c, chunk_bins)
 
             except RuntimeError:
                 try:
-                    chunk_percent_missing = not_gaussian_amp_est(a_c, nBins=150)
+                    chunk_percent_missing = not_gaussian_amp_est(a_c, nBins=chunk_bins*5)
 
                 except IndexError:
-                    chunk_percent_missing = not_gaussian_amp_est(a_c, nBins=300)
+                    chunk_percent_missing = not_gaussian_amp_est(a_c, nBins=chunk_bins*10)
 
             l_chunk_missing_spikes.append(chunk_percent_missing)  # Criterion for chunks. <= 30
             drift_free_chunk = 1 if chunk_percent_missing <= 30 else 0
@@ -515,15 +507,9 @@ for unit in good_units:
             # ******************************************************************************************************
             # ISI HISTOGRAM AND MEAN FIRING RATE GRAPH
 
-            # Compute ideal number of bins with Freedman-Diaconis’s Rule
-            len_ISI = int(len(isi_chunk))
-            no_RVP = [i for i in isi_chunk if i >= 2.0]  # 2ms
-            len_no_RVP = len(no_RVP)
-            bins = int(np.floor((len_ISI ** (1 / 3)))) * 10
-
-            axs[1, 0].hist(isi_chunk, bins=bins, color='lightgray', histtype='barstacked', label='ISI')
+            chunk_isi_bins = estimate_bins(isi_chunk_whole, rule='Fd')
+            axs[1, 0].hist(isi_chunk_whole, bins=chunk_isi_bins, color='lightgray', histtype='barstacked', label='ISI')
             axs[1, 0].set_xlabel('Inter Spike Interval')
-
             leg_line_mfr = [f'Refractory Period Violations = {RVP_chunk}  \n'
                             f'Fraction of contamination = {Fp_chunk}  \n'
                             f'Mean Firing Rate = {MFR_chunk}  \n']
@@ -537,11 +523,7 @@ for unit in good_units:
             # ******************************************************************************************************
             # CHUNK AMPLITUDE
 
-            amplitudes_chunk_plot = distplot(amplitudes_chunk, ax=axs[1, 1], bins=80,
-                                             kde_kws={"shade": False},
-                                             kde=True, color='lightgray', hist=True)
-            nice_plot(amplitudes_chunk_plot, "Amplitudes", "", "")
-            # axs[1, 1].plot(norm_amplitudes_unit_20, color='lightgray')
+            axs[1, 1].hist(amplitudes_chunk, bins=chunk_bins, color='lightgray', histtype='barstacked', label='amps')
 
             labels_1_1 = [f'Chunk Mean Amplitude = {str(MA_chunk)} ']
             axs[1, 1].axvline(x=MA_chunk, ymin=0, ymax=0.95, linestyle='--', color='salmon')
@@ -556,7 +538,7 @@ for unit in good_units:
             # DRIFT RACKING RATIO AND MEAN AMPLITUDE
 
             if all(v is not None for v in [x_c, p0_c, n_fit_c, n_fit_no_cut_c, min_amp_c, chunk_percent_missing]):
-                axs[1, 2].hist(amplitudes_chunk, bins=200, orientation='vertical', color='lightgray')
+                axs[1, 2].hist(amplitudes_chunk, bins=chunk_bins, orientation='vertical', color='lightgray')
                 axs[1, 2].plot(x_c, n_fit_no_cut_c, color='silver')
                 axs[1, 2].plot(x_c, n_fit_c, color='gold')
                 axs[1, 2].set_ylabel("# of spikes", size=9, color='#939799')
@@ -570,7 +552,7 @@ for unit in good_units:
                     lh.set_alpha(0)
 
             else:
-                axs[1, 2].hist(amplitudes_chunk, bins=200, orientation='vertical', color='salmon')
+                axs[1, 2].hist(amplitudes_chunk, bins=chunk_bins, orientation='vertical', color='salmon')
                 leg_dtr_1_2_x = [f'Spikes missing: {chunk_percent_missing}%']
                 leg_1_2 = axs[1, 2].legend(leg_dtr_1_2_x, loc='best', frameon=False, fontsize=10)
                 for text in leg_1_2.get_texts():
@@ -596,8 +578,8 @@ for unit in good_units:
             if not os.path.exists(unit_chunks_path):
                 os.makedirs(unit_chunks_path)
 
-            #fig.savefig(
-            #    f"Images/Pipeline/Sample_{sample}/Unit_{unit}/Chunks/sample-{sample}-unit-{unit}-chunk-{i}-{chunk_len}.png")
+            fig.savefig(
+                f"Images/Pipeline/Sample_{sample}/Unit_{unit}/Chunks/sample-{sample}-unit-{unit}-chunk-{i}-{chunk_len}.png")
 
         df = pd.DataFrame(
             {'Sample': l_samples,
@@ -637,8 +619,8 @@ for unit in good_units:
             }
         )
 
-        #df.to_csv(f'Images/Pipeline/Sample_{sample}/Unit_{unit}/Summary-sample-{sample}-unit-{unit}.csv', index=False)
-        #print(f'Summary-sample-{sample}-unit-{unit}.csv  ---> Successfully created!')
+        df.to_csv(f'Images/Pipeline/Sample_{sample}/Unit_{unit}/Summary-sample-{sample}-unit-{unit}.csv', index=False)
+        print(f'Summary-sample-{sample}-unit-{unit}.csv  ---> Successfully created!')
 
         total += 1
         print('--- Progress: ', total, 'of', len(good_units))
