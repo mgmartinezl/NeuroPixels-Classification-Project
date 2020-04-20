@@ -36,10 +36,24 @@ def estimate_bins(x, rule):
 
     # Freedman-Diaconis rule
     if rule == 'Fd':
-        iqr_ = iqr(x)
-        h = 2 * iqr_ * (n ** (-1/3))
-        b = int(round((maxi-mini)/h, 0))
-        return b
+
+        data = np.asarray(x, dtype=np.float_)
+        iqr_ = iqr(data, scale="raw", nan_policy="omit")
+        n = data.size
+        bw = (2 * iqr_) / np.power(n, 1 / 3)
+        datmin= min(data)
+        datmax = max(data)
+        datrng = datmax - datmin
+        bins = int(datrng/bw + 1)
+
+        # q75, q25 = np.percentile(x, [75, 25])
+        # iqr_ = q75 - q25
+        # print('iqr', iqr_)
+        # h = 2 * iqr_ * (n ** (-1/3))
+        # print('h', h)
+        # b = int(round((maxi-mini)/h, 0))
+
+        return bins
 
     # Square-root choice
     elif rule == 'Sqrt':
@@ -60,29 +74,35 @@ def not_gaussian_amp_est(x, nBins):
     return percent_missing
 
 
-def gaussian_amp_est(x, Nbins):
-    x1, p0 = ampli_fit_gaussian_cut(x, Nbins)
-    n_fit = gaussian_cut(x1, a=p0[0], mu=p0[1], sigma=p0[2], xcut=p0[3])
-    min_amp = p0[3]
-    n_fit_no_cut = gaussian_cut(x1, a=p0[0], mu=p0[1], sigma=p0[2], xcut=0)
-    percent_missing = int(round(100 * stats.norm.cdf((min_amp - p0[1]) / p0[2]), 0))
+def gaussian_amp_est(x, n_bins):
+
+    try:
+        x1, p0 = ampli_fit_gaussian_cut(x, n_bins)
+        n_fit = gaussian_cut(x1, a=p0[0], mu=p0[1], sigma=p0[2], x_cut=p0[3])
+        min_amp = p0[3]
+        n_fit_no_cut = gaussian_cut(x1, a=p0[0], mu=p0[1], sigma=p0[2], x_cut=0)
+        percent_missing = int(round(100 * stats.norm.cdf((min_amp - p0[1]) / p0[2]), 0))
+
+    except RuntimeError:
+        x1, p0, min_amp, n_fit, n_fit_no_cut, percent_missing = None, None, None, None, None, np.nan
+
     return x1, p0, min_amp, n_fit, n_fit_no_cut, percent_missing
 
 
-def gaussian_cut(x, a, mu, sigma, xcut):
+def gaussian_cut(x, a, mu, sigma, x_cut):
     g = a * np.exp(-(x - mu) ** 2 / (2 * sigma ** 2))
-    g[x < xcut] = 0
+    g[x < x_cut] = 0
     return g
 
 
 def curve_fit_(x, num, p1):
-    popt = opt.curve_fit(gaussian_cut, x, num, p1, maxfev=10000)
-    return popt
+    pop_t = opt.curve_fit(gaussian_cut, x, num, p1, maxfev=10000)
+    return pop_t
 
 
-def ampli_fit_gaussian_cut(x, Nbins):
+def ampli_fit_gaussian_cut(x, n_bins):
     a = np.asarray(x, dtype='float64')
-    num, bins = np.histogram(a, bins=Nbins)
+    num, bins = np.histogram(a, bins=n_bins)
     mode_seed = bins[np.where(num == max(num))]
     bin_steps = np.diff(bins[0:2])[0]
     x = bins[0:len(bins) - 1] + bin_steps / 2
@@ -121,25 +141,11 @@ def compute_acg(dp, unit, cbin=0.2, cwin=80):
     ACG = acg(dp, unit, bin_size=cbin, win_size=cwin, subset_selection='all', normalize='Hertz')
     x = np.linspace(-cwin * 1. / 2, cwin * 1. / 2, ACG.shape[0])
     y = ACG.copy()
-    # acg25, acg35 = ACG[:int(len(ACG) * 2. / 5)], ACG[int(len(ACG) * 3. / 5):]
-    # acg_std = np.std(np.append(acg25, acg35))
-    # acg_mn = np.mean(np.append(acg25, acg35))
     ylim1 = 0
     yl = max(ACG)
     ylim2 = int(yl) + 5 - (yl % 5)
 
     return x, y, ylim1, ylim2
-
-
-def compute_isi(trn, *args, **kwargs):
-    quantile = kwargs.get('quantile', None)
-    diffs = np.diff(trn)
-    isi_ = np.asarray(diffs, dtype='float64')
-    if quantile:
-        isi_ = isi_[(isi_ >= np.quantile(isi_, quantile)) & (isi_ <= np.quantile(isi_, 1 - quantile))]
-        return isi_
-    else:
-        return isi_
 
 
 def range_normalization(x):
@@ -204,36 +210,56 @@ def cosine_similarity(wvf1, wvf2):
     return cos_sim, cos_sim_t
 
 
-def rvp_and_fp(isi, N, T, tauR=0.002, tauC=0.0005):
+def compute_isi(trn, *args, **kwargs):
+    quantile = kwargs.get('quantile', None)
+    diffs = np.diff(trn)
+    isi_ = np.asarray(diffs, dtype='float64')
+    if quantile:
+        isi_ = isi_[(isi_ >= np.quantile(isi_, quantile)) & (isi_ <= np.quantile(isi_, 1 - quantile))]
+        return isi_
+    else:
+        return isi_
+
+
+def rvp_and_fp(isi, N, T, taur=0.002, tauc=0.0005):
 
     # based on Hill et al., J Neuro, 2011
     # N = spikes_unit
     # T = 20 * 60 * 1000  # T: total experiment duration in milliseconds
-    # tauR = 2  # tauR: refractory period >> 2 milliseconds
-    # tauC = 0.5  # tauC: censored period >> 0.5 milliseconds
+    # taur = 2  # taur: refractory period >> 2 milliseconds
+    # tauc = 0.5  # tauc: censored period >> 0.5 milliseconds
 
-    rpv = sum(isi <= tauR)
-    a = 2 * (tauR - tauC) * (N ** 2) / T  # In spikes >> r = 2*(tauR - tauC) * N^2 * (1-Fp) * Fp / T >> solve for Fp
+    # rpv = sum(isi <= taur)
+    # rpv = np.count_nonzero(np.diff(trn(dp, unit, subset_selection=[(0, 20*60)]))/30 < 2)
+    rpv = np.count_nonzero(isi <= taur)
+    a = T / (2 * (taur - tauc) * (N ** 2))
+    b = rpv*a
 
     if rpv == 0:
-        Fp = 0  # Fraction of contamination
-        overestimate = 0
+        fp = 0
     else:
-        rts = np.roots([-1, 1, -rpv/a])
-        Fp = int(100 * round(min(rts), 2))  # r >> solve for Fp
-        overestimate = 0
-        if isinstance(Fp, complex):
-            overestimate = 1
+        rts = np.roots([1, -1, b])
+        rts = rts[~np.iscomplex(rts)]
+        if rts.size != 0:
+            fp = round(min(rts), 2)
+        else:
             if rpv < N:
-                Fp = int(100 * round(rpv / (2 * (tauR - tauC) * (N - rpv)), 2)) # Integer
+                # This happens when constant b is greater than 0.25 >> lots of rpv wrt the total spikes!!!
+                # This means the rpv is huge wrt to N
+                # If we had more spikes in the unit/block, fp would be lower
+                # (b**2) - (4*a*c) < 0 -- range in which the equation does not have real roots!
+                # b = 0.25
+                # rts = np.roots([1, -1, b])
+                # rts = rts[~np.iscomplex(rts)]
+                # fp = round(min(rts), 2)
+                fp = np.nan
             else:
-                Fp = 1
-
-    return rpv, Fp
+                fp = 1
+    return rpv, fp
 
 
 def mean_firing_rate(isi):
-    MFR = 1000. / np.mean(isi)
+    MFR = 1 / np.mean(isi)  # Change to 1000. if isi is in milliseconds
     MFR = round(MFR, 2)
     return MFR
 
