@@ -209,14 +209,14 @@
 #         drift_free_unit = 1 if unit_percent_missing <= missing_threshold else 0
 #
 #         # >> UNIT ACG <<
-#         unit_ACG, x_unit, y_unit, y_lim1_unit, yl_unit, y_lim2_unit = None, None, None, None, None, None
+#         block_ACG, x_block, y_block, y_lim1_unit, yl_unit, y_lim2_unit = None, None, None, None, None, None
 #
 #         try:
-#             unit_ACG = acg(dp, unit, c_bin, c_win, subset_selection=[(0, unit_size_s)])
-#             x_unit = np.linspace(-c_win * 1. / 2, c_win * 1. / 2, unit_ACG.shape[0])
-#             y_unit = unit_ACG.copy()
+#             block_ACG = acg(dp, unit, c_bin, c_win, subset_selection=[(0, unit_size_s)])
+#             x_block = np.linspace(-c_win * 1. / 2, c_win * 1. / 2, block_ACG.shape[0])
+#             y_block = block_ACG.copy()
 #             y_lim1_unit = 0
-#             yl_unit = max(unit_ACG)
+#             yl_unit = max(block_ACG)
 #             y_lim2_unit = int(yl_unit) + 5 - (yl_unit % 5)
 #
 #         except ValueError:
@@ -251,8 +251,8 @@
 #         # ******************************************************************************************************
 #         # ACG FOR UNIT
 #
-#         if all(v is not None for v in [unit_ACG, x_unit, y_unit, y_lim1_unit, yl_unit, y_lim2_unit]):
-#             axs[0, 1].bar(x=x_unit, height=y_unit, width=0.2, color='salmon', bottom=y_lim1_unit)
+#         if all(v is not None for v in [block_ACG, x_block, y_block, y_lim1_unit, yl_unit, y_lim2_unit]):
+#             axs[0, 1].bar(x=x_block, height=y_block, width=0.2, color='salmon', bottom=y_lim1_unit)
 #             axs[0, 1].set_ylim([y_lim1_unit, y_lim2_unit])
 #             axs[0, 1].set_ylabel("Autocorrelation (Hz)", size=9, color='#939799')
 #             axs[0, 1].set_xlabel("Time (ms)", size=9)

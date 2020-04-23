@@ -28,6 +28,86 @@ import scipy.stats as stats
 from scipy.stats import iqr
 
 
+def find_neighbors(x):
+    if (x - 1 >= 0) & (x + 1 <= 19):
+        before_x = x - 1
+        after_x = x + 1
+        return before_x, after_x
+    elif x - 1 < 0:
+        before_x = x + 1
+        after_x = x + 2
+        return before_x, after_x
+    elif x + 1 > 19:
+        before_x = x - 2
+        after_x = x - 1
+        return before_x, after_x
+
+
+def closest_waveforms(x1, current, x2, all, waveforms):
+
+    if (x1 in all) & (x2 in all):
+
+        before_neighbor_index = all.index(x1)
+        deepest_chunk_index = all.index(current)
+        after_neighbor_index = all.index(x2)
+
+        before_neighbor_wvf = waveforms[before_neighbor_index]
+        deepest_chunk_wvf = waveforms[deepest_chunk_index]
+        after_neighbor_wvf = waveforms[after_neighbor_index]
+
+        waves = []
+        waves.append(before_neighbor_wvf)
+        waves.append(deepest_chunk_wvf)
+        waves.append(after_neighbor_wvf)
+
+        chunks_for_wvf = [x1, current, x2]
+        norm_wvf_block = np.mean(waves, axis=0)
+
+        return norm_wvf_block, chunks_for_wvf
+
+    elif (x1 in all) & (x2 not in all):
+
+        before_neighbor_index = all.index(x1)
+        deepest_chunk_index = all.index(current)
+
+        before_neighbor_wvf = waveforms[before_neighbor_index]
+        deepest_chunk_wvf = waveforms[deepest_chunk_index]
+
+        waves = []
+        waves.append(before_neighbor_wvf)
+        waves.append(deepest_chunk_wvf)
+
+        chunks_for_wvf = [x1, current]
+        norm_wvf_block = np.mean(waves, axis=0)
+
+        return norm_wvf_block, chunks_for_wvf
+
+    elif (x1 not in all) & (x2 in all):
+
+        deepest_chunk_index = all.index(current)
+        after_neighbor_index = all.index(x2)
+
+        deepest_chunk_wvf = waveforms[deepest_chunk_index]
+        after_neighbor_wvf = waveforms[after_neighbor_index]
+
+        waves = []
+        waves.append(deepest_chunk_wvf)
+        waves.append(after_neighbor_wvf)
+
+        chunks_for_wvf = [current, x2]
+        norm_wvf_block = np.mean(waves, axis=0)
+
+        return norm_wvf_block, chunks_for_wvf
+
+    elif (x1 not in all) & (x2 not in all):
+
+        deepest_chunk_index = all.index(current)
+        deepest_chunk_wvf = waveforms[deepest_chunk_index]
+        chunks_for_wvf = [current]
+
+        return deepest_chunk_wvf, chunks_for_wvf
+
+
 def estimate_bins(x, rule):
 
     n = len(x)
@@ -172,14 +252,14 @@ def detect_peaks(wvf):
     xs = []
     ys = []
 
-    for lk in list(range(5, 60, 5)):
+    for lk in list(range(5, 60, 4)):
         detected_peaks.append(peakdetect(wvf, lookahead=lk))
 
     detected_peaks = [x for x in detected_peaks[0] if x != []]
     detected_peaks = [item for items in detected_peaks for item in items]
 
     for peaks in detected_peaks:
-        if (peaks[1] < -0.3) or (peaks[1] > 0.3):
+        if (peaks[1] < -30) or (peaks[1] > 30):
             xs.append(peaks[0])
             ys.append(peaks[1])
 
@@ -212,6 +292,8 @@ def cosine_similarity(wvf1, wvf2):
 
 def compute_isi(trn, *args, **kwargs):
     quantile = kwargs.get('quantile', None)
+    trn = trn * 1. / (30000 * 1. / 1000)  # From samples to ms
+    # diffs = np.diff(trn)/30000
     diffs = np.diff(trn)
     isi_ = np.asarray(diffs, dtype='float64')
     if quantile:
@@ -221,12 +303,12 @@ def compute_isi(trn, *args, **kwargs):
         return isi_
 
 
-def rvp_and_fp(isi, N, T, taur=0.002, tauc=0.0005):
+def rvp_and_fp(isi, N, T, taur, tauc):
 
     # based on Hill et al., J Neuro, 2011
     # N = spikes_unit
     # T = 20 * 60 * 1000  # T: total experiment duration in milliseconds
-    # taur = 2  # taur: refractory period >> 2 milliseconds
+    # taur = 1.5  # taur: refractory period >> 1.5 milliseconds
     # tauc = 0.5  # tauc: censored period >> 0.5 milliseconds
 
     # rpv = sum(isi <= taur)
@@ -242,6 +324,7 @@ def rvp_and_fp(isi, N, T, taur=0.002, tauc=0.0005):
         rts = rts[~np.iscomplex(rts)]
         if rts.size != 0:
             fp = round(min(rts), 2)
+
         else:
             if rpv < N:
                 # This happens when constant b is greater than 0.25 >> lots of rpv wrt the total spikes!!!
