@@ -9,8 +9,7 @@ PkC = [
     'F:/data/PkC/18-08-30_YC002/18-08-30_YC002_probe1',
     'F:/data/PkC/18-12-17_YC010/18-12-17_YC010_probe1',
     'F:/data/PkC/18-12-18_YC010/18-12-18_YC010_probe1',
-    'F:/data/PkC/19-01-16_YC011/19-01-16_YC011_probe1',
-    'F:/data/PkC/19-10-28_YC031/19-10-28_YC031_probe1'
+    'F:/data/PkC/19-01-16_YC011/19-01-16_YC011_probe1'
 ]
 
 GrC = [

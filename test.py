@@ -5,4 +5,4 @@ from rtn.npix.plot import plot_wvf, hist_MB, plot_raw, plot_raw_units, plot_acg,
 
 
 dp = 'F:/data/PkC/19-01-16_YC011/19-01-16_YC011_probe1'
-unit = 26
+unit = 95
