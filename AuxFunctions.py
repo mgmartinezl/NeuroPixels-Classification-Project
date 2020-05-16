@@ -7,6 +7,8 @@ Script: AuxFunctions.py
 
 import matplotlib.pyplot as plt
 from rtn import npa
+from itertools import compress
+from scipy import interpolate
 from rtn.npix.gl import get_units, load_units_qualities
 from rtn.npix.io import ConcatenatedArrays, _pad, _range_from_slice, read_spikeglx_meta, chan_map
 from rtn.npix.spk_t import trn, isi, mfr
@@ -14,6 +16,10 @@ from rtn.npix.corr import crosscorrelate_cyrille, ccg, acg
 from rtn.npix.spk_wvf import wvf, templates, get_peak_chan, get_depthSort_peakChans
 from rtn.npix.plot import plot_wvf, hist_MB, plot_raw, plot_raw_units, plot_acg, plot_ccg
 from rtn.npix.circuitProphyler import Prophyler, Dataset, Unit
+import os
+import scipy as sp
+from scipy import ndimage
+
 
 from rtn.npix.corr import crosscorrelate_cyrille, ccg, acg
 from rtn.utils import peakdetect
@@ -67,37 +73,51 @@ def closest_waveforms(x1, current, x2, all, waveforms):
 
     elif (x1 in all) & (x2 not in all):
 
-        before_neighbor_index = all.index(x1)
-        deepest_chunk_index = all.index(current)
+        if current == 19:
+            deepest_chunk_index = all.index(current)
+            deepest_chunk_wvf = waveforms[deepest_chunk_index]
+            chunks_for_wvf = [current]
+            return deepest_chunk_wvf, chunks_for_wvf
 
-        before_neighbor_wvf = waveforms[before_neighbor_index]
-        deepest_chunk_wvf = waveforms[deepest_chunk_index]
+        else:
+            before_neighbor_index = all.index(x1)
+            deepest_chunk_index = all.index(current)
+            before_neighbor_wvf = waveforms[before_neighbor_index]
+            deepest_chunk_wvf = waveforms[deepest_chunk_index]
 
-        waves = []
-        waves.append(before_neighbor_wvf)
-        waves.append(deepest_chunk_wvf)
+            waves = []
+            waves.append(before_neighbor_wvf)
+            waves.append(deepest_chunk_wvf)
 
-        chunks_for_wvf = [x1, current]
-        norm_wvf_block = np.mean(waves, axis=0)
+            chunks_for_wvf = [x1, current]
+            norm_wvf_block = np.mean(waves, axis=0)
 
-        return norm_wvf_block, chunks_for_wvf
+            return norm_wvf_block, chunks_for_wvf
 
     elif (x1 not in all) & (x2 in all):
 
-        deepest_chunk_index = all.index(current)
-        after_neighbor_index = all.index(x2)
+        if current == 0:
 
-        deepest_chunk_wvf = waveforms[deepest_chunk_index]
-        after_neighbor_wvf = waveforms[after_neighbor_index]
+            deepest_chunk_index = all.index(current)
+            deepest_chunk_wvf = waveforms[deepest_chunk_index]
+            chunks_for_wvf = [current]
 
-        waves = []
-        waves.append(deepest_chunk_wvf)
-        waves.append(after_neighbor_wvf)
+            return deepest_chunk_wvf, chunks_for_wvf
 
-        chunks_for_wvf = [current, x2]
-        norm_wvf_block = np.mean(waves, axis=0)
+        else:
+            deepest_chunk_index = all.index(current)
+            after_neighbor_index = all.index(x2)
+            deepest_chunk_wvf = waveforms[deepest_chunk_index]
+            after_neighbor_wvf = waveforms[after_neighbor_index]
 
-        return norm_wvf_block, chunks_for_wvf
+            waves = []
+            waves.append(deepest_chunk_wvf)
+            waves.append(after_neighbor_wvf)
+
+            chunks_for_wvf = [current, x2]
+            norm_wvf_block = np.mean(waves, axis=0)
+
+            return norm_wvf_block, chunks_for_wvf
 
     elif (x1 not in all) & (x2 not in all):
 
@@ -175,8 +195,35 @@ def gaussian_cut(x, a, mu, sigma, x_cut):
     return g
 
 
+# def log_fit(x, a, mu, sigma):
+#     return a / x * 1. / (sigma * np.sqrt(2. * np.pi)) * np.exp(-(np.log(x) - mu)**2 / (2. * sigma**2))
+#
+#
+# def isi_fit_log(x, n_bins):
+#     a = np.asarray(x, dtype='float64')
+#     num, bins = np.histogram(a, bins=n_bins)
+#     mode = np.argmax(num)
+#     yM = num[mode]
+#     xM = bins[mode]
+#     xR = bins / xM
+#     yR = num / yM
+#     sol, err = opt.curve_fit(log_fit, xR, yR, maxfev=10000)
+#     scaledSol = [yM * sol[0] * xM, sol[1] + np.log(xM), sol[2]]
+#     yF = np.fromiter((log_fit(xx, *sol) for xx in xR), np.float)
+#     yFIR = np.fromiter((log_fit(xx, *scaledSol) for xx in x), np.float)
+
+
 def curve_fit_(x, num, p1):
     pop_t = opt.curve_fit(gaussian_cut, x, num, p1, maxfev=10000)
+    return pop_t
+
+
+def exponential_fit(x, a, r):
+    return a*np.exp(r*x)
+
+
+def curve_fit_exp(x, y, p):
+    pop_t = opt.curve_fit(exponential_fit, x, y, p, maxfev=10000)
     return pop_t
 
 
@@ -247,24 +294,54 @@ def waveform_sigma(wvf):
     return sigma
 
 
-def detect_peaks(wvf):
+def delete_routines(command, dir):
+
+    if command is True:
+        for filename in os.listdir(dir):
+            file_path = os.path.join(dir, filename)
+            try:
+                if os.path.isfile(file_path) or os.path.islink(file_path):
+                    os.unlink(file_path)
+            except Exception as e:
+                print('Failed to delete %s. Reason: %s' % (file_path, e))
+
+    else:
+        pass
+
+
+def detect_peaks(wvf, outliers_dev):
     detected_peaks = []
     xs = []
     ys = []
+    count_wvf_peaks = 0
 
-    for lk in list(range(5, 60, 4)):
+    for lk in list(range(3, 60, 3)):
         detected_peaks.append(peakdetect(wvf, lookahead=lk))
 
     detected_peaks = [x for x in detected_peaks[0] if x != []]
     detected_peaks = [item for items in detected_peaks for item in items]
 
+    iqr_ = iqr(wvf) * outliers_dev
+    _med = np.median(wvf)
+    lower = _med - iqr_
+    upper = _med + iqr_
+
     for peaks in detected_peaks:
-        if (peaks[1] < -30) or (peaks[1] > 30):
+        if (peaks[1] >= upper) | (peaks[1] <= lower):
             xs.append(peaks[0])
             ys.append(peaks[1])
 
-    count_wvf_peaks = len(xs)
-    return xs, ys, count_wvf_peaks
+    # Add max positive peak
+    if np.amax(wvf) not in ys:
+        ys.append(np.amax(wvf))
+        xs.append(np.where(wvf == np.amax(wvf))[0][0])
+
+    bool_x = [(i >= 31) and (i <= 50) for i in xs]
+    ys_center = list(compress(ys, bool_x))
+    count_wvf_center_peaks = len(ys_center)
+    count_wvf_peaks = len(ys)
+
+    return xs, ys, count_wvf_peaks, count_wvf_center_peaks
 
 
 def detect_biggest_peak(wvf):
@@ -282,25 +359,11 @@ def detect_biggest_peak(wvf):
 
 def cosine_similarity(wvf1, wvf2):
     dot_product = np.dot(wvf1, wvf2)
-    norm_wavf1 = np.linalg.norm(wvf1)
+    norm_wvf1 = np.linalg.norm(wvf1)
     norm_wvf2 = np.linalg.norm(wvf2)
-    cos_sim = dot_product / (norm_wavf1 * norm_wvf2)
+    cos_sim = dot_product / (norm_wvf1 * norm_wvf2)
     cos_sim = round(float(cos_sim), 2)
-    cos_sim_t = 1 if cos_sim >= 0.6 else 0
-    return cos_sim, cos_sim_t
-
-
-def compute_isi(trn, *args, **kwargs):
-    quantile = kwargs.get('quantile', None)
-    trn = trn * 1. / (30000 * 1. / 1000)  # From samples to ms
-    # diffs = np.diff(trn)/30000
-    diffs = np.diff(trn)
-    isi_ = np.asarray(diffs, dtype='float64')
-    if quantile:
-        isi_ = isi_[(isi_ >= np.quantile(isi_, quantile)) & (isi_ <= np.quantile(isi_, 1 - quantile))]
-        return isi_
-    else:
-        return isi_
+    return cos_sim
 
 
 def rvp_and_fp(isi, N, T, taur, tauc):
@@ -341,10 +404,176 @@ def rvp_and_fp(isi, N, T, taur, tauc):
     return rpv, fp
 
 
+def compute_entropy_dorval(isint, isi_bins):
+
+    """
+    Dorval2007:
+    Using logqrithmic ISIs i.e. ISIs binned in bISI(k) =ISI0 * 10**k/κ with k=1:Klog.
+    Classical entropy estimation from Shannon & Weaver, 1949.
+    Spike entropy characterizes the regularity of firing (the higher the less regular)
+    """
+
+    ## Compute entropy as in Dorval et al., 2009
+    # 1) Pisi is the logscaled discrete density of the ISIs for a given unit
+    # (density = normalized histogram)
+    # right hand side of k_th bin is bISI(k) =ISI0 * 10**k/κ with k=1:Klog
+    # where ISI0 is smaller than the smallest ISI -> 0.01
+    # and Klog is picked such that bISI(Klog) is larger than the largest ISI -> 300 so 350
+    # K is the number of bins per ISI decade.
+
+    # Entropy can be thought as a measurement of the sharpness of the histogram peaks,
+    # which is directly related with a better defined structural information
+
+    ISI0 = 0.1
+    Klog = 350
+    K = 100
+
+    try:
+        binsLog = ISI0 * 10 ** (np.arange(1, Klog + 1, 1) * 1. / isi_bins)
+        num, bins = np.histogram(isint, binsLog)
+        histy, histx = num * 1. / np.sum(num), bins[1:]
+        sigma = (1. / 6) * np.std(histy)
+        Pisi = ndimage.gaussian_filter1d(histy, sigma)
+
+    except ValueError:
+        binsLog = isi_bins
+        num, bins = np.histogram(isint, binsLog)
+        histy, histx = num * 1. / np.sum(num), bins[1:]
+        sigma = (1. / 6) * np.std(histy)
+        Pisi = ndimage.gaussian_filter1d(histy, sigma)
+
+    # Remove 0 values
+    non0vals = (Pisi > 0)
+    Pisi = Pisi[non0vals]
+
+    entropy = 0
+
+    for i in range(len(Pisi)):
+        entropy += -Pisi[i] * np.log2(Pisi[i])
+
+    return entropy
+
+
 def mean_firing_rate(isi):
-    MFR = 1 / np.mean(isi)  # Change to 1000. if isi is in milliseconds
-    MFR = round(MFR, 2)
-    return MFR
+    mfr = 1. / np.mean(isi)  # rate='Hz'
+    mfr = round(mfr, 2)
+    return mfr
+
+
+def compute_isi(train, *args, **kwargs):
+
+    """This function returns the isi in ms! """
+
+    quantile = kwargs.get('quantile', None)
+    # train = trn * 1. / (30000 * 1. / 1000)  # From samples to ms
+    # diffs = np.diff(trn)/30000
+    diffs = np.diff(train)
+    isi_ = np.asarray(diffs, dtype='float64')
+    if quantile:
+        isi_ = isi_[(isi_ >= np.quantile(isi_, quantile)) & (isi_ <= np.quantile(isi_, 1 - quantile))]
+        return isi_/30000
+    else:
+        return isi_
+
+
+def compute_isi_features(isint, isi_bins):
+
+    # This assumes that ISI is already in ms
+
+    #isint = isint[isint != 0]
+    isint_s = isint * 1. / 1000  # Transform isi from ms to seconds
+
+    # Transform the isi into a histogram
+    # Pi = np.histogram(isint, bins=np.arange(0, 100, 0.1))
+
+    # Firing pattern features
+
+    # Mean Instantaneous Firing Rate. Why in seconds?
+    # Instantaneous frequencies were calculated for each interspike interval as the reciprocal of the isi;
+    # mean instantaneous frequency as the arithmetic mean of all values.
+    # MIFR = np.mean(1./isint_s)
+    mifr = round(float(np.mean(1./isint)), 3)
+
+    # Median inter-spike interval distribution
+    # medISI = np.median(isint)
+    med_isi = round(float(np.median(isint)), 3)
+
+    # Mode of inter-spike interval distribution
+    # modeISI = Pi[1][:-1][Pi[0] == np.max(Pi[0])][0]
+    num, bins = np.histogram(isint, bins=np.arange(0, 100, 0.1))
+    mode_isi = np.argmax(num)
+
+    # Burstiness of firing: 5th percentile of inter-spike interval distribution
+    prct5ISI = round(np.percentile(isint, 5), 3)
+
+    # Entropy of inter-spike interval distribution
+    entropyD = round(compute_entropy_dorval(isint, isi_bins), 3)
+
+    # Average coefficient of variation for a sequence of 2 ISIs
+    # Relative difference of adjacent ISIs
+    CV2_mean = round(float(np.mean(2 * np.abs(isint[1:] - isint[:-1]) / (isint[1:] + isint[:-1]))), 3)
+    CV2_median = round(float(np.median(2 * np.abs(isint[1:] - isint[:-1]) / (isint[1:] + isint[:-1]))), 3)  # (Holt et al., 1996)
+
+    # Coefficient of variation
+    # Checked!
+    CV = round(np.std(isint) / np.mean(isint), 3)
+
+    # Instantaneous irregularity >> equivalent to the difference of the log ISIs
+    # Checked!
+    IR = round(float(np.mean(np.abs(np.log(isint[1:] / isint[:-1])))), 3)
+
+    # # Local Variation
+    # Checked!
+    # https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2701610/pdf/pcbi.1000433.pdf
+    Lv = round(3 * np.mean(np.ones((len(isint) - 1)) - (4 * isint[:-1] * isint[1:]) / ((isint[:-1] + isint[1:]) ** 2)), 3)
+
+    # Revised Local Variation, with R the refractory period in the same unit as isint
+    # Checked!
+    # https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2701610/pdf/pcbi.1000433.pdf
+    R = 0.8  # ms
+    LvR = 3 * np.mean((np.ones((len(isint) - 1)) - (4 * isint[:-1] * isint[1:]) / ((isint[:-1] + isint[1:]) ** 2)) *
+                      (np.ones((len(isint) - 1)) + (4 * R / (isint[:-1] + isint[1:]))))
+    LvR = round(LvR, 3)
+
+    # Coefficient of variation of the log ISIs
+    # Checked!
+    LcV = round(np.std(np.log10(isint)) * 1. / np.mean(np.log10(isint)), 3)
+
+    # Geometric average of the rescaled cross correlation of ISIs
+    # Checked!
+    SI = round(-np.mean(0.5 * np.log10((4 * isint[:-1] * isint[1:]) / ((isint[:-1] + isint[1:]) ** 2))), 3)
+
+    # Skewness of the inter-spikes intervals distribution
+    # Checked!
+    SKW = round(float(sp.stats.skew(isint)), 3)
+
+    # Entropy not included
+    return mifr, med_isi, mode_isi, prct5ISI, entropyD, CV2_mean, CV2_median, CV, IR, Lv, LvR, LcV, SI, SKW
+
+
+def spline_interpolation(wvf, x_axis, y):
+
+    y_reduced = np.array(wvf) - y
+    first_root = interpolate.UnivariateSpline(x_axis, y_reduced).roots()[0]
+    second_root = interpolate.UnivariateSpline(x_axis, y_reduced).roots()[1]
+    x_diff = np.abs(second_root - first_root)
+
+    return first_root, second_root, x_diff
+
+
+def compute_waveforms_features(wave, peaks_x_center, peaks_y_center, fs=30000, ampliFactor=500):
+
+    # # Add min negative peak
+    # if np.amin(wave) not in peaks_y_center:
+    #     peaks_y_center.append(np.amin(wave))
+    #     peaks_x_center.append(np.where(wvf == np.amin(wave))[0][0])
+
+    bool_x = [(i >= 31) and (i <= 50) for i in peaks_x_center]
+    peaks_x_center = list(compress(peaks_x_center, bool_x))
+    peaks_y_center = list(compress(peaks_y_center, bool_x))
+
+    pk_neg_amplitude = np.min(peaks_y_center)
+    pk_pos_amplitude = np.max(peaks_y_center)
 
 
 def mean_amplitude(samples):
@@ -364,6 +593,7 @@ Patch = matplotlib.patches.Patch
 PosVal = Tuple[float, Tuple[float, float]]
 Axis = matplotlib.axes.Axes
 PosValFunc = Callable[[Patch], PosVal]
+
 
 @dataclass
 class AnnotateBars:
