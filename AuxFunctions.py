@@ -404,7 +404,7 @@ def rvp_and_fp(isi, N, T, taur, tauc):
     return rpv, fp
 
 
-def compute_entropy_dorval(isint, isi_bins):
+def compute_entropy_dorval(isint):
 
     """
     Dorval2007:
@@ -426,17 +426,18 @@ def compute_entropy_dorval(isint, isi_bins):
 
     ISI0 = 0.1
     Klog = 350
-    K = 100
+    K = 200
 
     try:
-        binsLog = ISI0 * 10 ** (np.arange(1, Klog + 1, 1) * 1. / isi_bins)
+        # binsLog = ISI0 * 10 ** (np.arange(1, Klog + 1, 1) * 1. / K)
+        binsLog = 200
         num, bins = np.histogram(isint, binsLog)
         histy, histx = num * 1. / np.sum(num), bins[1:]
         sigma = (1. / 6) * np.std(histy)
         Pisi = ndimage.gaussian_filter1d(histy, sigma)
 
     except ValueError:
-        binsLog = isi_bins
+        binsLog = 200
         num, bins = np.histogram(isint, binsLog)
         histy, histx = num * 1. / np.sum(num), bins[1:]
         sigma = (1. / 6) * np.std(histy)
@@ -476,7 +477,7 @@ def compute_isi(train, *args, **kwargs):
         return isi_
 
 
-def compute_isi_features(isint, isi_bins):
+def compute_isi_features(isint):
 
     # This assumes that ISI is already in ms
 
@@ -507,7 +508,7 @@ def compute_isi_features(isint, isi_bins):
     prct5ISI = round(np.percentile(isint, 5), 3)
 
     # Entropy of inter-spike interval distribution
-    entropyD = round(compute_entropy_dorval(isint, isi_bins), 3)
+    entropyD = round(compute_entropy_dorval(isint), 3)
 
     # Average coefficient of variation for a sequence of 2 ISIs
     # Relative difference of adjacent ISIs
@@ -587,6 +588,12 @@ def remove_outliers(x, q):
     x = x.reshape(len(x), )
     return x
 
+
+def find_nearest(array, value):
+    array = np.asarray(array)
+    idx = (np.abs(array - value)).argmin()
+    return array[idx], idx
+    # return array[min(range(len(array)), key=lambda i: abs(array[i] - value))]
 
 # Auxiliary function to draw
 Patch = matplotlib.patches.Patch

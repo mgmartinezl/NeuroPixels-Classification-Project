@@ -56,7 +56,8 @@ data_sets = [
     # 'F:/data/GrC/19-11-04_YC036/19-11-04_YC036_probe1',
     #'F:/data/GrC/19-11-04_YC037/19-11-04_YC037_probe1',
     # 'F:/data/GrC/19-11-05_YC036/19-11-05_YC036_probe1',
-    'F:/data/GrC/19-11-05_YC037/19-11-05_YC037_probe1'
+    # 'F:/data/GrC/19-11-05_YC037/19-11-05_YC037_probe1'
+    # 'F:/data/GoC/19-11-11_YC040/19-11-11_YC040_probe1'
 
 ]
 
@@ -103,7 +104,7 @@ for dp in data_sets:
     peaks_threshold = 3
     missing_threshold = 30
     waveforms = 400
-    again = False
+    again = True
     outliers_dev = 1.5
 
     # Extract good units of current sample

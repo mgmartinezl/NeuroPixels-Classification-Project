@@ -1,0 +1,2 @@
+Sample,Unit,PeakChUnit,SpikesUnit,NumChunks,Chunks,SpikesBlock,MissingSpikesBlock,MFRBlock,MeanAmpBlock,RPVBlock,FpBlockFancy,FpBlockSimple,ACGViolationRatio,WvfPeaksBlock,BigPkNegBlock
+19-01-16_YC011,52,134,9562,0,,7564,21,0.01,13.93,320,,0.04,0.19,2,0

@@ -42,10 +42,11 @@ data_sets = [
     "Images/Pipeline/Sample_19-11-05_YC037_probe1",
     "Images/Pipeline/Sample_19-11-05_YC036_probe1",
     "Images/Pipeline/Sample_19-11-04_YC037_probe1",
-    "Images/Pipeline/Sample_19-11-04_YC036_probe1"
+    "Images/Pipeline/Sample_19-11-04_YC036_probe1",
+    "Images/Pipeline/Sample_19-11-11_YC040_probe1"
 ]
 
-df = []
+# df = []
 
 # for data_set in data_sets:
 #
@@ -76,25 +77,44 @@ df = []
 #     appended_df.to_csv(f'Images/Pipeline/Sample_{sample_probe}/Sample-{sample_probe}-ChunksUnits.csv', index=False)
 
 
+# for data_set in data_sets:
+#
+#     sample_probe = re.findall(r"\d{2}-\d{2}-\d{2}_\w{2}\d{3}_\w{5}\d{1}", data_set)[0]
+#     sample = re.findall(r"\d{2}-\d{2}-\d{2}_\w{2}\d{3}", data_set)[0]
+#     good_path = f'Images/Pipeline/Sample_{sample_probe}/GoodUnits/Files'
+#
+#     good_units = []
+#
+#     for root, dirs, filenames in os.walk(good_path, topdown=False):
+#         for filename in filenames:
+#             unit = os.path.splitext(filename)[0].split('unit-')[1]
+#             good_units.append(unit)
+#
+#     good_units = [int(i) for i in good_units]
+#
+#     df_ = pd.DataFrame({'Sample': sample_probe, 'Quality units': len(good_units), 'Units': [good_units]})
+#     df.append(df_)
+#
+# appended_df = pd.concat(df).reset_index(drop=True)
+# print(appended_df.head())
+# appended_df.to_csv('Images/Pipeline/GoodUnitsAllRecordings.csv', index=False)
+
+
+files = []
+
 for data_set in data_sets:
 
     sample_probe = re.findall(r"\d{2}-\d{2}-\d{2}_\w{2}\d{3}_\w{5}\d{1}", data_set)[0]
     sample = re.findall(r"\d{2}-\d{2}-\d{2}_\w{2}\d{3}", data_set)[0]
-    good_path = f'Images/Pipeline/Sample_{sample_probe}/GoodUnits/Files'
-
-    good_units = []
+    good_path = f'Images/Pipeline/Sample_{sample_probe}/Features/Files'
 
     for root, dirs, filenames in os.walk(good_path, topdown=False):
         for filename in filenames:
-            unit = os.path.splitext(filename)[0].split('unit-')[1]
-            good_units.append(unit)
+            file = os.path.join(root, filename)
+            files.append(file)
 
-    good_units = [int(i) for i in good_units]
+    print(f"Overall sample now contains {len(files)} observations")
 
-    df_ = pd.DataFrame({'Sample': sample_probe, 'Quality units': len(good_units), 'Units': [good_units]})
-    df.append(df_)
-
-appended_df = pd.concat(df).reset_index(drop=True)
-print(appended_df.head())
-appended_df.to_csv('Images/Pipeline/GoodUnitsAllRecordings.csv', index=False)
+    combined_csv = pd.concat([pd.read_csv(f) for f in files])
+    combined_csv.to_csv("Neuropixels_Features.csv", index=False)
 
