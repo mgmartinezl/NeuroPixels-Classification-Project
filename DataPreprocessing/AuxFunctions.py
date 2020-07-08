@@ -472,7 +472,7 @@ def compute_isi(train, *args, **kwargs):
     isi_ = np.asarray(diffs, dtype='float64')
     if quantile:
         isi_ = isi_[(isi_ >= np.quantile(isi_, quantile)) & (isi_ <= np.quantile(isi_, 1 - quantile))]
-        return isi_/30000
+        return isi_/(30000)
     else:
         return isi_
 

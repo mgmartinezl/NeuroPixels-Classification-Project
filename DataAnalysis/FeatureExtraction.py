@@ -63,9 +63,11 @@ data_sets = [
     # 'F:/data/GrC/19-08-14_YC016/19-08-14_YC016_probe1'   # DONE
     # 'F:/data/GrC/19-08-15_YC016/19-08-15_YC016_probe1'  # DONE
     # 'F:/data/GrC/19-08-14_YC016/19-08-14_YC016_probe2'  # 344, 373, 591, 613, 62 DONE
-    # 'F:/data/GoC/19-11-11_YC040/19-11-11_YC040_probe1' DONE
+    # 'F:/data/GoC/19-11-11_YC040/19-11-11_YC040_probe1'  # DONE
     # DK 186 and 187 missing for Golgi
     # 'F:/data/GrC/19-08-14_YC016/19-08-14_YC016_probe2'  # 344, 373, 591, 613, 62
+    # 'D:/Recordings/20-15-06_DK186/20-15-06_DK186_probe1'
+    'D:/Recordings/20-27-06_DK187/20-27-06_DK187_probe1'
 
 ]
 
@@ -100,22 +102,19 @@ for dp in data_sets:
     all_good_units = pd.read_csv('../Images/Pipeline/GoodUnitsAllRecordings.csv')
     good_units = ast.literal_eval(all_good_units[all_good_units['Sample'].str.match(sample_probe)]['Units'].values[0])
 
-    paths = [f'Images/Pipeline/Sample_{sample_probe}/Features/Images',
-             f'Images/Pipeline/Sample_{sample_probe}/Features/Files']
+    paths = [f'../Images/Pipeline/Sample_{sample_probe}/Features/Images',
+             f'../Images/Pipeline/Sample_{sample_probe}/Features/Files']
 
     print(f"Quality units found in current sample: {len(good_units)} --> {good_units}")
 
     # Extract chunks for good units
-    units_chunks = pd.read_csv(f'Images/Pipeline/Sample_{sample_probe}/Sample-{sample_probe}-ChunksUnits.csv')
+    units_chunks = pd.read_csv(f'../Images/Pipeline/Sample_{sample_probe}/Sample-{sample_probe}-ChunksUnits.csv')
 
-    good_units = [65, 66, 666, 68, 69, 716, 74, 812, 814, 815, 825,
-                  83, 834, 846, 848, 849, 876, 881, 884, 91, 910, 938, 959, 964, 979,
-                  993]
+    good_units = [493, 479, 385, 404]
 
     d = 3
     h = 2
     r = 10
-
 
     for unit in good_units:
 
@@ -132,10 +131,10 @@ for dp in data_sets:
         chunks_wvf = list(map(int, eval(units_chunks[units_chunks['Unit'] == unit]['WvfChunks'][
             units_chunks[units_chunks['Unit'] == unit].index.values.astype(int)[0]])))
 
-        # chunks_wvf = [12,13,14]
+        chunks_wvf = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]
 
         # Store quality metrics
-        unit_quality_metrics = pd.read_csv(f'Images/Pipeline/Sample_{sample_probe}/GoodUnits/Files/Sample-{sample}-unit-{unit}.csv')
+        unit_quality_metrics = pd.read_csv(f'../Images/Pipeline/Sample_{sample_probe}/GoodUnits/Files/Sample-{sample}-unit-{unit}.csv')
 
         # Retrieve peak channel for this unit
         peak_channel = unit_quality_metrics['PeakChUnit'][0]
@@ -640,8 +639,6 @@ for dp in data_sets:
                 x_fall_hw, x_fall_hw_idx = find_nearest(waveform_block[:x.index(neg_amp_time)], neg_amp_50)
                 neg_fall_hw = x[:x.index(neg_amp_time)][x_fall_hw_idx]
 
-                #neg_fall_hw = neg_fall_hw - duration
-
                 print('Neg fall half Case 1')
 
             except Exception:
@@ -726,8 +723,8 @@ for dp in data_sets:
             # neg_fall_hw = neg_fall_hw + duration*2.5
             # neg_rise_hw = neg_rise_hw - 0.05
             # neg_fall_hw = neg_fall_hw - 0.1
-            # neg_fall_hw = neg_fall_hw - duration
-            #neg_rise_hw = neg_rise_hw - duration/2
+            # neg_fall_hw = neg_fall_hw - duration*5
+            # neg_rise_hw = neg_rise_hw - duration*2
 
             negHw_duration = np.abs(neg_rise_hw - neg_fall_hw)
 
@@ -873,7 +870,7 @@ for dp in data_sets:
                     neg_fall_slope_time = np.abs(neg_amp_90_time - neg_amp_10_time)
 
                     # Negative decay time: spike duration from negative peak to 10% of negative peak.
-                    neg_decay_time = neg_amp_time - neg_amp_10_time
+                    neg_decay_time = np.abs(neg_amp_time - neg_amp_10_time)
 
                     print('- 10% 90% Case 2')
 
@@ -916,7 +913,7 @@ for dp in data_sets:
                     neg_fall_slope_time = np.abs(neg_amp_90_time - neg_amp_10_time)
 
                     # Negative decay time: spike duration from negative peak to 10% of negative peak.
-                    # neg_decay_time = neg_amp_time - neg_amp_10_time
+                    neg_decay_time = np.abs(neg_amp_time - neg_amp_10_time)
 
                     print('- 10% 90% Case 3')
 
@@ -1031,7 +1028,7 @@ for dp in data_sets:
                 neg_rise_hw = neg_amp_10_time + duration / 2
                 neg_fall_hw = neg_amp_10_time
 
-            # neg_rise_hw = neg_rise_hw - 6.5*duration
+            # neg_rise_hw = neg_rise_hw - 3*duration
 
             negHw_duration = neg_rise_hw - neg_fall_hw
 
@@ -1174,8 +1171,8 @@ for dp in data_sets:
                         xs_rec = np.zeros(len(x[x.index(neg_amp_time) + 5:]))
                         rec_values = [0 for i in xs_rec]
 
-        # end, idx = find_nearest(waveform_block[x.index(neg_amp_time)+15:x.index(neg_amp_time) + 75], end)
-        # end_time = x[x.index(neg_amp_time)+15:x.index(neg_amp_time) + 75][idx]
+        # end, idx = find_nearest(waveform_block[x.index(neg_amp_time)+40:x.index(neg_amp_time) + 75], end)
+        # end_time = x[x.index(neg_amp_time)+40:x.index(neg_amp_time) + 75][idx]
 
         # onset, idx = find_nearest(waveform_block[x.index(neg_amp_time)-20:x.index(neg_amp_time)-10], onset)
         # onset_time = x[x.index(neg_amp_time)-20:x.index(neg_amp_time)-10][idx]

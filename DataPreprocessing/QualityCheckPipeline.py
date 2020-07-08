@@ -51,14 +51,15 @@ data_sets = [
     # 'F:/data/GrC/19-08-16_YC015/19-08-16_YC015_probe1',
     # 'F:/data/MFB/18-09-03_YC006/18-09-03_YC006_probe1',
     # 'F:/data/MFB/19-01-24_YC013/19-01-24_YC013_probe1',
-    # 'F:/data/MLI/19-12-13_YC007/19-12-13_YC007_probe1',
+    # 'F:/data/MLI/19-12-13_YC007/19-12-13_YC007_probe1'
     # 'Z:/npix_data/optotagging/Back-Up-YYC_2019_optotagging/data/GrC/18-12-13_YC008/18-12-13_YC008_probe1'
     # 'F:/data/GrC/19-11-04_YC036/19-11-04_YC036_probe1',
-    #'F:/data/GrC/19-11-04_YC037/19-11-04_YC037_probe1',
+    # 'F:/data/GrC/19-11-04_YC037/19-11-04_YC037_probe1',
     # 'F:/data/GrC/19-11-05_YC036/19-11-05_YC036_probe1',
     # 'F:/data/GrC/19-11-05_YC037/19-11-05_YC037_probe1'
     # 'F:/data/GoC/19-11-11_YC040/19-11-11_YC040_probe1'
-
+    # 'D:/Recordings/20-15-06_DK186/20-15-06_DK186_probe1'
+    'D:/Recordings/20-27-06_DK187/20-27-06_DK187_probe1'
 ]
 
 deleteBool = True
@@ -67,11 +68,14 @@ for dp in data_sets:
 
     sample_probe = re.findall(r"\d{2}-\d{2}-\d{2}_\w{2}\d{3}_\w{5}\d{1}", dp)[0]
     sample = re.findall(r"\d{2}-\d{2}-\d{2}_\w{2}\d{3}", dp)[0]
+    # sample_probe = '200306_DK186_imec0'
+    # sample = '200306_DK186_imec0'
     print('***************************')
     print('Sample:', sample_probe)
     cell_type = dp[8:11]
-    # routines_path = f'{dp}/routinesMemory'
-    routines_mem = f'D:/routinesMem/{sample_probe}/routinesMemory'
+    # cell_type = 'Go'
+    routines_mem = f'{dp}/routinesMemory'
+    # routines_mem = f'D:/routinesMem/{sample_probe}/routinesMemory'
     # routines_mem = f'{dp}/routinesMemory'
     print('cell type:', cell_type)
     print('routines_mem:', routines_mem)
@@ -81,9 +85,9 @@ for dp in data_sets:
         os.makedirs(routines_mem)
 
     # Load kilosort aux files
-    amplitudes_sample = np.load(f'{dp}//amplitudes.npy')  # shape N_tot_spikes x 1
-    spike_times = np.load(f'{dp}//spike_times.npy')  # in samples
-    spike_clusters = np.load(f'{dp}//spike_clusters.npy')
+    amplitudes_sample = np.load(f'{dp}/amplitudes.npy')  # shape N_tot_spikes x 1
+    spike_times = np.load(f'{dp}/spike_times.npy')  # in samples
+    spike_clusters = np.load(f'{dp}/spike_clusters.npy')
 
     # Parameters
     fs = 30000
@@ -119,6 +123,8 @@ for dp in data_sets:
     fp_block_regular = []
     l_units = []
     total = 0
+
+    good_units = [498,493,481,479,473,464,385,404,419,439]
 
     for unit in good_units:
 
@@ -192,7 +198,7 @@ for dp in data_sets:
                 normal_obs_mean = np.mean(normal_obs)
 
                 # Compute ACG ratio to account for refractory violations
-                rpv_ratio_acg = round(violations_mean/normal_obs_mean, 2)
+                rpv_ratio_acg = round(violations_mean / normal_obs_mean, 2)
 
             except ValueError:
                 print("ACG could not be computed!")
@@ -223,11 +229,11 @@ for dp in data_sets:
                     chunk_bins = estimate_bins(amplitudes_chunk, rule='Fd')
 
                     # % of missing spikes per chunk
-                    x_c, p0_c, min_amp_c, n_fit_c, n_fit_no_cut_c, chunk_spikes_missing = gaussian_amp_est(amplitudes_chunk, chunk_bins)
+                    x_c, p0_c, min_amp_c, n_fit_c, n_fit_no_cut_c, chunk_spikes_missing = gaussian_amp_est(
+                        amplitudes_chunk, chunk_bins)
 
                     # If chunk % of missing spikes is less than 30%, we can proceed
                     if (~np.isnan(chunk_spikes_missing)) & (chunk_spikes_missing <= 30):
-
                         l_good_chunks.append(i)
                         l_chunk_spikes_missing.append(chunk_spikes_missing)
                         l_chunk_amplitudes.append(amplitudes_chunk)
@@ -321,7 +327,7 @@ for dp in data_sets:
                     pass
 
                 # >> Compute fraction of contamination for the block << Everything in seconds!!
-                rpv_block, fp_block = rvp_and_fp(np.diff(trn_samples_block)/30000,
+                rpv_block, fp_block = rvp_and_fp(np.diff(trn_samples_block) / 30000,
                                                  N=num_block_spikes,
                                                  T=block_time,
                                                  taur=taur,
@@ -329,7 +335,7 @@ for dp in data_sets:
                 fp_block_fancy.append(fp_block)
 
                 # >> Compute version 2 of fraction of contamination for the block <<
-                fp_block_2 = round(rpv_block/num_block_spikes, 2)
+                fp_block_2 = round(rpv_block / num_block_spikes, 2)
                 fp_block_regular.append(fp_block_2)
 
                 # >> Waveform analysis <<
@@ -337,7 +343,8 @@ for dp in data_sets:
                 big_peak_neg_block = detect_biggest_peak(wvf_block)
 
                 # Detect peaks
-                xs_block, ys_block, count_wvf_peaks, count_wvf_center_peaks = detect_peaks(wvf_block, outliers_dev=outliers_dev)
+                xs_block, ys_block, count_wvf_peaks, count_wvf_center_peaks = detect_peaks(wvf_block,
+                                                                                           outliers_dev=outliers_dev)
                 wvf_peaks_block_dummy = 1 if 1 <= count_wvf_center_peaks <= peaks_threshold else 0
 
                 # Coefficient of variation
@@ -388,7 +395,7 @@ for dp in data_sets:
 
                     # [0, 0]
                     x1 = list(np.arange(len(wvf_block), step=10))
-                    x2 = [round(i/30, 2) for i in x1]  # Samples to ms
+                    x2 = [round(i / 30, 2) for i in x1]  # Samples to ms
                     plt.sca(axs[0, 0])
 
                     axs[0, 0].plot(wvf_block, color='gold')
@@ -435,7 +442,7 @@ for dp in data_sets:
                             axs[1, 0].set_xlim(left=0.1)
                             axs[1, 0].set_xlabel('Inter Spike Interval [ms] (log scale)')
                             leg_line_mfr = [f'RPV = {rpv_block}  \n'
-                                            f'RPV/Spikes = {fp_block_2}  \n' 
+                                            f'RPV/Spikes = {fp_block_2}  \n'
                                             f'ACG ratio= {rpv_ratio_acg}  \n'
                                             f'MFR = {mfr_block} Hz \n']
                             leg_1_0 = axs[1, 0].legend(leg_line_mfr, loc='best', frameon=False, fontsize=9)
@@ -504,12 +511,12 @@ for dp in data_sets:
                          'PeaksBlock_x': [xs_block],
                          'PeaksBlock_y': [ys_block],
                          'BigPkNegBlock': big_peak_neg_block  # 1/0
-                         #'SpikeSamples': [trn_samples_block.tolist()],
-                         #'SpikeSeconds': [trn_seconds_block],
-                         #'SpikeMilliseconds': [trn_milliseconds_block],
-                         #'MeanWaveform': [wvf_block],
-                         #'ISIHist': [isi_block_no_clipped],
-                         #'Amplitudes': [amplitudes_block_no_clipped],
+                         # 'SpikeSamples': [trn_samples_block.tolist()],
+                         # 'SpikeSeconds': [trn_seconds_block],
+                         # 'SpikeMilliseconds': [trn_milliseconds_block],
+                         # 'MeanWaveform': [wvf_block],
+                         # 'ISIHist': [isi_block_no_clipped],
+                         # 'Amplitudes': [amplitudes_block_no_clipped],
                          }, index=[0]
                     )
 
@@ -665,4 +672,3 @@ for dp in data_sets:
         print(f'{x} good units out of {len(good_units)}')
 
     # delete_routines(deleteBool, routines_path)
-
