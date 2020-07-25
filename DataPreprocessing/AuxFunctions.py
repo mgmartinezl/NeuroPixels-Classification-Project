@@ -195,24 +195,6 @@ def gaussian_cut(x, a, mu, sigma, x_cut):
     return g
 
 
-# def log_fit(x, a, mu, sigma):
-#     return a / x * 1. / (sigma * np.sqrt(2. * np.pi)) * np.exp(-(np.log(x) - mu)**2 / (2. * sigma**2))
-#
-#
-# def isi_fit_log(x, n_bins):
-#     a = np.asarray(x, dtype='float64')
-#     num, bins = np.histogram(a, bins=n_bins)
-#     mode = np.argmax(num)
-#     yM = num[mode]
-#     xM = bins[mode]
-#     xR = bins / xM
-#     yR = num / yM
-#     sol, err = opt.curve_fit(log_fit, xR, yR, maxfev=10000)
-#     scaledSol = [yM * sol[0] * xM, sol[1] + np.log(xM), sol[2]]
-#     yF = np.fromiter((log_fit(xx, *sol) for xx in xR), np.float)
-#     yFIR = np.fromiter((log_fit(xx, *scaledSol) for xx in x), np.float)
-
-
 def curve_fit_(x, num, p1):
     pop_t = opt.curve_fit(gaussian_cut, x, num, p1, maxfev=10000)
     return pop_t
@@ -252,16 +234,6 @@ def ampli_fit_gaussian_cut(x, n_bins):
     p0 = popt[0]
 
     return x, p0
-
-
-# def remove_duplicate_spikes(trn):
-#     diffs = [y - x for x, y in zip(trn, trn[1:])]
-#     unique_mask = []
-#     z = [False if i <= 0.5 else True for i in diffs]
-#     unique_mask.append(z)
-#     unique_spikes_mask = unique_mask[0]
-#     diffs = list(compress(diffs, unique_spikes_mask))
-#     return diffs
 
 
 def compute_acg(dp, unit, cbin=0.2, cwin=80):

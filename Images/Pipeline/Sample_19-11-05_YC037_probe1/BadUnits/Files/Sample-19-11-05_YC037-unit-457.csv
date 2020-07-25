@@ -1,2 +1,0 @@
-Sample,Unit,PeakChUnit,SpikesUnit,GoodChunks,GoodChunksList,WvfChunks,WvfChunksList,SpikesBlock,PercMissingSpikesBlock,MFRBlockHz,MeanAmpBlock,RPVBlock,FpBlockFancy,FpBlockSimple,ACGViolationRatio,WvfPeaksBlock,PeaksBlock_x,PeaksBlock_y,BigPkNegBlock
-19-11-05_YC037,457,272,1590,6,"[1, 15, 16, 17, 18, 19]",1,[1],851,6,3.09,10.72,0,0,0.0,0.18,3,"[47, 69, 41]","[7.6171875, 6.2109375, -11.25]",1
