@@ -1,6 +1,6 @@
 ## Master's thesis BDMA program 2020
 
-### Machine learning methods for neuronal identificationfrom electrophysiological recordings in the cerebellum
+### Machine learning methods for neuronal identification from electrophysiological recordings in the cerebellum
 
 Prepared at the Wolfson Institute for Biomedical Research, University College London
 
